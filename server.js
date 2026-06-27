@@ -6,6 +6,7 @@ const mysql = require("mysql2/promise");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const { URL } = require("url");
+const analyzeService = require("./analyze");
 
 const app = express();
 app.use(express.json());
@@ -420,8 +421,19 @@ app.post("/enrich", async (req, res) => {
   }
 });
 
+app.post("/analyze", async (req, res) => {
+  try {
+    const result = await analyzeService.analyzeNext();
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Analysis failed", details: error.message });
+  }
+});
+
 // -------------------- START SERVER --------------------
 app.listen(PORT, async () => {
   await initDB();
+  await analyzeService.initDB();
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
