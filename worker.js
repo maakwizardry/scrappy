@@ -98,9 +98,35 @@ async function processNextBusiness() {
   // 2. Perform Enrichment if not already enriched
   if (business.enriched === 0) {
     if (!business.website) {
-      console.log(`   -> No website found. Skipping enrichment, but will generate email anyway.`);
+      console.log(`   -> No website found. Storing fallback enrichment data...`);
+      enrichmentData = {
+        finalUrl: null, sourceType: "unknown", title: "N/A", metaDescription: "N/A", h1: "N/A",
+        isWordPress: false, isShopify: false, hasEmail: false, hasPhone: false, hasForm: false,
+        hasContactPage: false, score: 0, lead_type: "web_design_lead", lead_tag: "no_website",
+        pageText: "", internalLinks: 0, imagesCount: 0, ctaCount: 0, socialLinks: []
+      };
+      
+      await db.execute(
+        `
+        INSERT INTO business_enrichment (
+          business_id, website, final_url, source_type, title, meta_description, h1,
+          is_wordpress, is_shopify, has_email, has_phone, has_form,
+          has_contact_page, score, lead_type, lead_tag, services_text,
+          all_text, internal_links_count, images_count, cta_count, social_links
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          business.id, business.website, enrichmentData.finalUrl, enrichmentData.sourceType, enrichmentData.title,
+          enrichmentData.metaDescription, enrichmentData.h1, enrichmentData.isWordPress, enrichmentData.isShopify,
+          enrichmentData.hasEmail, enrichmentData.hasPhone, enrichmentData.hasForm, enrichmentData.hasContactPage,
+          enrichmentData.score, enrichmentData.lead_type, enrichmentData.lead_tag, null,
+          enrichmentData.pageText, enrichmentData.internalLinks, enrichmentData.imagesCount, enrichmentData.ctaCount,
+          JSON.stringify(enrichmentData.socialLinks)
+        ]
+      );
       await db.execute(`UPDATE businesses SET enriched = 1, enriched_at = NOW() WHERE id = ?`, [business.id]);
-      // proceed to email generation with null enrichmentData
+      console.log(`   ✅ Fallback enrichment saved.`);
     } else {
       try {
         console.log(`   -> Enriching website...`);
@@ -129,18 +155,17 @@ async function processNextBusiness() {
         await db.execute(`UPDATE businesses SET enriched = 1, enriched_at = NOW() WHERE id = ?`, [business.id]);
         console.log(`   ✅ Enrichment saved.`);
       } catch (err) {
-        console.error(`   ❌ Enrichment failed: ${err.message}. Proceeding to generate email anyway.`);
+        console.error(`   ❌ Enrichment failed:`, err);
         await db.execute(`UPDATE businesses SET enriched = 1, enriched_at = NOW() WHERE id = ?`, [business.id]);
         // proceed to email generation
       }
     }
   } else {
     console.log(`   -> Already enriched, fetching data...`);
-    if (business.website) {
-      const [enrichRows] = await db.execute(`SELECT * FROM business_enrichment WHERE website = ? ORDER BY id DESC LIMIT 1`, [business.website]);
-      if (enrichRows.length > 0) {
-        enrichmentData = enrichRows[0];
-      }
+    // Fetch by business_id instead of website to be safe (handles no-website cases too)
+    const [enrichRows] = await db.execute(`SELECT * FROM business_enrichment WHERE business_id = ? ORDER BY id DESC LIMIT 1`, [business.id]);
+    if (enrichRows.length > 0) {
+      enrichmentData = enrichRows[0];
     }
   }
 
