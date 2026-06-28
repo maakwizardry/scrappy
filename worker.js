@@ -1,8 +1,7 @@
 require("dotenv").config();
 const mysql = require("mysql2/promise");
 const { performEnrichment } = require("./enrichment");
-const { validateUrl }       = require("./urlValidator");
-
+const { validateUrl } = require("./urlValidator");
 let db;
 async function initDB() {
   db = await mysql.createConnection({
