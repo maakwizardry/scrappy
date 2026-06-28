@@ -4,7 +4,6 @@ const { performEnrichment } = require("./enrichment");
 const { validateUrl }       = require("./urlValidator");
 
 let db;
-
 async function initDB() {
   db = await mysql.createConnection({
     host:     process.env.DB_HOST,
