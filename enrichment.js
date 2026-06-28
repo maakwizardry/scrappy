@@ -1,206 +1,384 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
-const { URL } = require("url");
 
-function getHost(url) {
-  try {
-    return new URL(url).hostname.replace("www.", "").toLowerCase();
-  } catch {
-    return null;
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+
+const CMS_SIGNATURES = {
+  wordpress:   [/wp-content/i, /wp-includes/i, /xmlrpc\.php/i, /wordpress/i],
+  shopify:     [/cdn\.shopify\.com/i, /Shopify\.theme/i, /myshopify\.com/i],
+  webflow:     [/webflow\.com/i, /\.webflow\.io/i, /data-wf-/i],
+  squarespace: [/squarespace\.com/i, /static\.squarespace\.com/i, /squarespace-cdn/i],
+  wix:         [/wix\.com/i, /wixstatic\.com/i, /wixsite\.com/i],
+  framer:      [/framer\.com/i, /framerusercontent\.com/i],
+  ghost:       [/ghost\.org/i, /ghost\.io/i],
+  hubspot:     [/hs-scripts\.com/i, /hubspot\.com/i, /hsforms\.com/i],
+};
+
+const ANALYTICS_SIGNATURES = [
+  /google-analytics\.com/i, /googletagmanager\.com/i,
+  /gtag\(/i, /ga\(/i,
+  /fbq\(/i, /facebook\.net\/en_US\/fbevents/i, // Meta Pixel
+  /segment\.com/i, /mixpanel/i, /hotjar/i, /clarity\.ms/i,
+  /heap\.io/i, /amplitude\.com/i,
+];
+
+const CHAT_WIDGET_SIGNATURES = {
+  intercom:  [/intercom/i, /widget\.intercom\.io/i],
+  crisp:     [/crisp\.chat/i, /client\.crisp\.chat/i],
+  drift:     [/drift\.com/i, /js\.driftt\.com/i],
+  tidio:     [/tidio/i, /code\.tidio\.co/i],
+  tawk:      [/tawk\.to/i, /embed\.tawk\.to/i],
+  zendesk:   [/zopim/i, /zendesk\.com\/embeddable/i],
+  freshchat: [/freshchat/i, /wchat\.freshchat\.com/i],
+};
+
+const SOCIAL_PLATFORMS = {
+  facebook:  /facebook\.com\//i,
+  instagram: /instagram\.com\//i,
+  twitter:   /twitter\.com\/|x\.com\//i,
+  linkedin:  /linkedin\.com\//i,
+  youtube:   /youtube\.com\//i,
+  tiktok:    /tiktok\.com\//i,
+  pinterest: /pinterest\.com\//i,
+};
+
+const PAIN_KEYWORDS = [
+  "under construction", "coming soon", "lorem ipsum",
+  "click here", "read more", "learn more", // weak CTAs
+];
+
+const CONTACT_PAGE_PATTERNS = /\/(contact|reach-us|get-in-touch|talk-to-us|hire-us)/i;
+const PRICING_PAGE_PATTERNS  = /\/(pricing|plans|packages|rates|fees)/i;
+const BLOG_PAGE_PATTERNS     = /\/(blog|news|articles|insights|resources|posts)/i;
+const ABOUT_PAGE_PATTERNS    = /\/(about|team|who-we-are|our-story|company)/i;
+const SERVICES_PAGE_PATTERNS = /\/(services|solutions|what-we-do|offerings|products)/i;
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+
+function normalizeUrl(url) {
+  if (!url) return null;
+  url = url.trim();
+  if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+  try { return new URL(url).href; } catch { return null; }
+}
+
+function matchesAny(source, patterns) {
+  return patterns.some((p) => p.test(source));
+}
+
+function detectCMS(html, headers = {}) {
+  const source = html + JSON.stringify(headers);
+  for (const [cms, patterns] of Object.entries(CMS_SIGNATURES)) {
+    if (matchesAny(source, patterns)) return cms;
   }
+  return "custom";
 }
 
-function classifySource(host) {
-  if (!host) return "unknown";
-
-  if (host.includes("facebook.com") || host.includes("fb.com")) return "facebook";
-  if (host.includes("google.") || host.includes("maps.google")) return "google";
-  if (
-      host.includes("yellowpages") ||
-      host.includes("yelp.") ||
-      host.includes("foursquare") ||
-      host.includes("hotfrog")
-  ) return "directory";
-
-  if (
-      host.includes("instagram.com") ||
-      host.includes("linkedin.com") ||
-      host.includes("tiktok.com") ||
-      host.includes("twitter.com")
-  ) return "social";
-
-  return "website";
+function detectAnalytics(html) {
+  return ANALYTICS_SIGNATURES.some((p) => p.test(html));
 }
 
-async function resolveFinalUrl(url) {
-  try {
-    const res = await axios.get(url, {
-      maxRedirects: 5,
-      timeout: 15000,
-      headers: { "User-Agent": "Mozilla/5.0 (LeadBot/2.0)" }
-    });
-    return res.request?.res?.responseUrl || url;
-  } catch {
-    return url;
+function detectChatWidget(html) {
+  for (const [name, patterns] of Object.entries(CHAT_WIDGET_SIGNATURES)) {
+    if (matchesAny(html, patterns)) return name;
   }
+  return null;
 }
 
-async function performEnrichment(businessWebsite) {
-    if (!businessWebsite) {
-        throw new Error("No website provided");
+function detectSocialLinks($) {
+  const found = {};
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href") || "";
+    for (const [platform, pattern] of Object.entries(SOCIAL_PLATFORMS)) {
+      if (pattern.test(href)) found[platform] = href;
     }
-    const finalUrl = await resolveFinalUrl(businessWebsite);
-    const host = getHost(finalUrl);
-    const sourceType = classifySource(host);
+  });
+  return Object.entries(found).map(([platform, url]) => ({ platform, url }));
+}
 
-    let html = "";
+function extractCopyrightYear(html) {
+  const match = html.match(/©\s*(\d{4})|copyright\s*(\d{4})/i);
+  if (match) return parseInt(match[1] || match[2]);
+  return null;
+}
+
+function extractFooterCopyrightYear($) {
+  const footerText = $("footer").text() + $('[class*="footer"]').text();
+  const match = footerText.match(/©\s*(\d{4})|copyright\s*(?:©\s*)?(\d{4})/i);
+  if (match) return parseInt(match[1] || match[2]);
+  return null;
+}
+
+function extractNavLinks($, baseUrl) {
+  const links = new Set();
+  $("nav a[href], header a[href]").each((_, el) => {
+    const href = $(el).attr("href") || "";
+    if (href && !href.startsWith("#") && !href.startsWith("mailto") && !href.startsWith("tel")) {
+      try {
+        const abs = new URL(href, baseUrl).href;
+        links.add(abs);
+      } catch {}
+    }
+  });
+  return [...links];
+}
+
+function extractAllInternalLinks($, baseUrl) {
+  const parsed = new URL(baseUrl);
+  const links = new Set();
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href") || "";
     try {
-      const response = await axios.get(finalUrl, {
-        timeout: 20000,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (LeadBot/2.0)"
-        }
-      });
-      html = response.data;
-    } catch (e) {
-      html = "";
+      const abs = new URL(href, baseUrl);
+      if (abs.hostname === parsed.hostname) links.add(abs.pathname);
+    } catch {}
+  });
+  return links.size;
+}
+
+function extractCTAs($) {
+  const ctaSelectors = [
+    "a.btn", "a.button", "button", ".cta", "[class*='cta']",
+    "a[class*='btn']", "a[class*='button']",
+  ];
+  const texts = new Set();
+  $(ctaSelectors.join(", ")).each((_, el) => {
+    const text = $(el).text().trim();
+    if (text && text.length < 60) texts.add(text);
+  });
+  return [...texts].slice(0, 10);
+}
+
+function extractServicesProducts($) {
+  const candidates = [];
+  // From nav items
+  $("nav a, header a").each((_, el) => {
+    const text = $(el).text().trim();
+    if (text && text.length < 40 && !/home|about|contact|blog|login|sign/i.test(text)) {
+      candidates.push(text);
     }
+  });
+  // From headings in service sections
+  $("h2, h3").each((_, el) => {
+    const text = $(el).text().trim();
+    if (text && text.length < 80) candidates.push(text);
+  });
+  return [...new Set(candidates)].slice(0, 15);
+}
 
-    const $ = cheerio.load(html);
-    const pageText = $("body").text().replace(/\s+/g, " ").trim().toLowerCase();
+function extractValueProp($) {
+  // Hero section — most likely first h1 + nearby paragraph
+  const h1 = $("h1").first().text().trim();
+  const heroP = $("h1").first().next("p").text().trim()
+    || $(".hero p, .banner p, [class*='hero'] p").first().text().trim();
+  return { h1, heroP };
+}
 
-    // -------------------- SEO --------------------
-    const title = $("title").text().trim() || null;
-    const metaDescription = $('meta[name="description"]').attr("content") || null;
-    const h1 = $("h1").first().text().trim() || null;
+function extractBusinessSummary($) {
+  // Try meta description first
+  const meta = $('meta[name="description"]').attr("content")
+    || $('meta[property="og:description"]').attr("content") || "";
 
-    // -------------------- TECH --------------------
-    const isWordPress = html.toLowerCase().includes("wp-content");
-    const isShopify = html.toLowerCase().includes("shopify");
+  // Try about section
+  const aboutSection = $('[class*="about"] p, #about p').first().text().trim();
 
-    // -------------------- CONTACT SIGNALS --------------------
-    const emails = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/g);
-    const phones = pageText.match(/\+?[0-9][0-9\s\-()]{7,}/g);
+  // Fallback to first meaningful paragraph
+  const firstP = $("main p, article p, section p").first().text().trim();
 
-    const hasEmail = !!(emails && emails.length);
-    const hasPhone = !!(phones && phones.length);
-    const hasForm = $("form").length > 0;
+  return (meta || aboutSection || firstP || "").slice(0, 500);
+}
 
-    const hasContactPage =
-        $("a[href*='contact']").length > 0 || pageText.includes("contact");
+function detectPainPoints($, html, copyrightYear) {
+  const issues = [];
 
-    // -------------------- STRUCTURE --------------------
-    const totalLinks = $("a").length;
-    const imagesCount = $("img").length;
+  if (copyrightYear && copyrightYear < 2020) {
+    issues.push(`site_outdated_${copyrightYear}`);
+  }
 
-    const internalLinks = $("a").filter((i, el) => {
-      const href = $(el).attr("href") || "";
-      return href.startsWith("/") || href.includes(host);
-    }).length;
+  if (!$('meta[name="viewport"]').length) {
+    issues.push("not_mobile_optimized");
+  }
 
-    // -------------------- SOCIALS --------------------
-    const socialLinks = [];
+  const lowerHtml = html.toLowerCase();
+  PAIN_KEYWORDS.forEach((kw) => {
+    if (lowerHtml.includes(kw)) issues.push(`weak_copy_${kw.replace(/\s/g, "_")}`);
+  });
 
-    $("a").each((_, el) => {
-      const href = $(el).attr("href") || "";
-      if (
-          href.includes("facebook") ||
-          href.includes("instagram") ||
-          href.includes("linkedin") ||
-          href.includes("twitter")
-      ) {
-        socialLinks.push(href);
-      }
+  if (!detectAnalytics(html)) issues.push("no_analytics_tracking");
+
+  const imgCount = $("img").length;
+  if (imgCount === 0) issues.push("no_images");
+
+  return issues;
+}
+
+function classifyLead(enrichment) {
+  const { hasWebsite, cms, hasAnalytics, hasChatWidget, painPoints, copyrightYear } = enrichment;
+
+  if (!hasWebsite) return { lead_type: "web_design_lead", lead_tag: "no_website" };
+
+  if (painPoints.includes("not_mobile_optimized")) return { lead_type: "web_design_lead", lead_tag: "not_mobile_friendly" };
+
+  if (copyrightYear && copyrightYear < 2019) return { lead_type: "web_design_lead", lead_tag: "outdated_website" };
+
+  if (cms === "wix" || cms === "squarespace") return { lead_type: "web_design_lead", lead_tag: `upgrade_from_${cms}` };
+
+  if (!hasAnalytics) return { lead_type: "seo_or_ads_lead", lead_tag: "no_analytics" };
+
+  if (!hasChatWidget) return { lead_type: "conversion_optimization_lead", lead_tag: "no_chat_widget" };
+
+  return { lead_type: "general_outreach", lead_tag: "established_site" };
+}
+
+function cleanPageText($) {
+  $("script, style, noscript, iframe, svg, head").remove();
+  const text = $.root().text().replace(/\s+/g, " ").trim();
+  return text.slice(0, 3000); // enough context for AI without bloat
+}
+
+// ─────────────────────────────────────────────
+// MAIN ENRICHMENT FUNCTION
+// ─────────────────────────────────────────────
+
+async function performEnrichment(websiteUrl) {
+  const normalizedUrl = normalizeUrl(websiteUrl);
+  if (!normalizedUrl) throw new Error(`Invalid URL: ${websiteUrl}`);
+
+  let response;
+  try {
+    response = await axios.get(normalizedUrl, {
+      timeout: 12000,
+      maxRedirects: 5,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
     });
+  } catch (err) {
+    throw new Error(`Failed to fetch ${normalizedUrl}: ${err.message}`);
+  }
 
-    // -------------------- CTA --------------------
-    const ctaKeywords = [
-      "get a quote",
-      "request a quote",
-      "contact us",
-      "book now",
-      "call now",
-      "schedule",
-      "free estimate"
-    ];
+  const html      = response.data || "";
+  const finalUrl  = response.request?.res?.responseUrl || normalizedUrl;
+  const headers   = response.headers || {};
+  const $         = cheerio.load(html);
 
-    let ctaCount = 0;
-    for (const cta of ctaKeywords) {
-      if (pageText.includes(cta)) ctaCount++;
-    }
+  // ── Tech Stack ──────────────────────────────
+  const cms            = detectCMS(html, headers);
+  const hasAnalytics   = detectAnalytics(html);
+  const chatWidget     = detectChatWidget(html);
+  const hasSSL         = finalUrl.startsWith("https://");
+  const hasViewportMeta = !!$('meta[name="viewport"]').length;
 
-    // -------------------- SCORING (IMPROVED NORMALIZED) --------------------
+  // ── Page Identity ────────────────────────────
+  const title          = $("title").text().trim();
+  const metaDescription = $('meta[name="description"]').attr("content")?.trim() || "";
+  const { h1, heroP }  = extractValueProp($);
 
-    let score = 0;
+  // ── Business Context ─────────────────────────
+  const businessSummary   = extractBusinessSummary($);
+  const servicesOrProducts = extractServicesProducts($);
+  const ctaTexts          = extractCTAs($);
+  const primaryCTA        = ctaTexts[0] || null;
+  const socialLinks       = detectSocialLinks($);
 
-    // base trust signals
-    if (finalUrl.startsWith("https://")) score += 10;
-    if (title) score += 5;
-    if (metaDescription) score += 5;
-    if (h1) score += 5;
+  // ── Site Structure ───────────────────────────
+  const navLinks          = extractNavLinks($, finalUrl);
+  const internalLinksCount = extractAllInternalLinks($, finalUrl);
+  const imagesCount       = $("img").length;
 
-    // contact signals
-    if (hasEmail) score += 20;
-    if (hasPhone) score += 20;
-    if (hasForm) score += 10;
-    if (hasContactPage) score += 10;
+  const hasContactPage  = navLinks.some((l) => CONTACT_PAGE_PATTERNS.test(l));
+  const hasPricingPage  = navLinks.some((l) => PRICING_PAGE_PATTERNS.test(l));
+  const hasBlog         = navLinks.some((l) => BLOG_PAGE_PATTERNS.test(l));
+  const hasAboutPage    = navLinks.some((l) => ABOUT_PAGE_PATTERNS.test(l));
+  const hasServicesPage = navLinks.some((l) => SERVICES_PAGE_PATTERNS.test(l));
+  const hasTestimonials = /testimonial|review|what.+client|what.+customer/i.test(html);
+  const hasTeamPage     = /our.team|meet.the.team|our.people|staff/i.test(html)
+    || navLinks.some((l) => ABOUT_PAGE_PATTERNS.test(l));
 
-    // tech signals
-    if (isWordPress) score += 5;
-    if (isShopify) score += 5;
+  // ── Inline contact info ───────────────────────
+  const hasEmail = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i.test(html);
+  const hasPhone = /(\+?\d[\d\s\-().]{7,}\d)/.test(html);
 
-    // engagement signals
-    score += Math.min(ctaCount * 3, 15);
-    score += Math.min(socialLinks.length * 2, 10);
+  // ── Pain Signals ─────────────────────────────
+  const copyrightYear = extractFooterCopyrightYear($) || extractCopyrightYear(html);
+  const painPoints    = detectPainPoints($, html, copyrightYear);
 
-    // structure signals
-    if (internalLinks > 5) score += 5;
-    if (imagesCount > 5) score += 5;
+  // ── Score ─────────────────────────────────────
+  let score = 50;
+  if (hasSSL)            score += 5;
+  if (hasAnalytics)      score += 10;
+  if (chatWidget)        score += 5;
+  if (hasViewportMeta)   score += 10;
+  if (hasBlog)           score += 5;
+  if (hasTestimonials)   score += 5;
+  if (hasPricingPage)    score += 5;
+  if (copyrightYear && copyrightYear < 2020) score -= 20;
+  if (painPoints.length > 2) score -= 10;
+  score = Math.max(0, Math.min(100, score));
 
-    // -------------------- LEAD TYPE --------------------
+  // ── Lead Classification ───────────────────────
+  const { lead_type, lead_tag } = classifyLead({
+    hasWebsite: true, cms, hasAnalytics, hasChatWidget: !!chatWidget, painPoints, copyrightYear,
+  });
 
-    let lead_type = "web_design_lead";
-    let lead_tag = "improve_site";
+  // ── Raw text for AI ───────────────────────────
+  const pageText = cleanPageText($);
 
-    if (sourceType === "facebook" || sourceType === "social") {
-      lead_type = "social_lead";
-      lead_tag = "convert_social";
-    }
+  return {
+    // Identity
+    hasWebsite:      true,
+    finalUrl,
+    sourceType:      "scraped",
+    title,
+    metaDescription,
+    h1,
+    heroP,
 
-    if (sourceType === "directory") {
-      lead_type = "directory_lead";
-      lead_tag = "convert_listing";
-    }
+    // Tech Stack
+    cms,
+    hasSSL,
+    hasAnalytics,
+    chatWidget,           // null or name of widget
+    hasViewportMeta,
 
-    if (score >= 80) {
-      lead_type = "marketing_lead";
-      lead_tag = "sell_leads";
-    } else if (score < 40) {
-      lead_type = "dead_lead";
-      lead_tag = "ignore";
-    }
-    
-    return {
-        finalUrl,
-        sourceType,
-        title,
-        metaDescription,
-        h1,
-        isWordPress,
-        isShopify,
-        hasEmail,
-        hasPhone,
-        hasForm,
-        hasContactPage,
-        score,
-        lead_type,
-        lead_tag,
-        pageText: pageText.substring(0, 10000),
-        internalLinks,
-        imagesCount,
-        ctaCount,
-        socialLinks
-    };
+    // Business Context
+    businessSummary,
+    servicesOrProducts,   // string[]
+    ctaTexts,             // string[]
+    primaryCTA,
+    socialLinks,          // [{ platform, url }]
+
+    // Site Structure
+    hasContactPage,
+    hasPricingPage,
+    hasBlog,
+    hasAboutPage,
+    hasServicesPage,
+    hasTestimonials,
+    hasTeamPage,
+    hasEmail,
+    hasPhone,
+    internalLinksCount,
+    imagesCount,
+
+    // Pain Signals
+    copyrightYear,
+    painPoints,           // string[]
+
+    // Score & Classification
+    score,
+    lead_type,
+    lead_tag,
+
+    // Raw text for AI prompt
+    pageText,
+  };
 }
 
 module.exports = { performEnrichment };
