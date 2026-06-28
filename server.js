@@ -84,8 +84,17 @@ app.post("/scrape", async (req, res) => {
                 el.querySelector(".listing__address")?.innerText?.trim() ||
                 null;
 
-            const website =
+            let website =
                 el.querySelector(".mlr__item--website a")?.href || null;
+            if (website && website.includes("redirect=")) {
+              try {
+                const urlObj = new URL(website);
+                const redirectParam = urlObj.searchParams.get("redirect");
+                if (redirectParam) {
+                  website = decodeURIComponent(redirectParam);
+                }
+              } catch (e) {}
+            }
 
             const profile_url =
                 el.querySelector("a.listing__name--link")?.href || null;
@@ -271,50 +280,6 @@ app.post("/analyze", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Analysis failed", details: error.message });
-  }
-});
-
-app.get("/businesses", async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit) || 50;
-    const [rows] = await db.execute(`
-      SELECT 
-        b.id, b.name, b.phone, b.address, b.website, b.analyzed,
-        e.score, e.has_email, e.has_phone, e.has_contact_page, e.lead_type, e.lead_tag,
-        a.generated_email
-      FROM businesses b
-      LEFT JOIN business_enrichment e ON b.id = e.business_id
-      LEFT JOIN business_analysis a ON b.id = a.business_id
-      ORDER BY b.created_at DESC
-      LIMIT ?
-    `, [limit]);
-
-    // Format the response
-    const formatted = rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      contact: { phone: row.phone, address: row.address, website: row.website },
-      status: row.analyzed ? "Analyzed" : "Analysis not completed yet",
-      enrichment: row.analyzed ? {
-        score: row.score,
-        has_email: !!row.has_email,
-        has_phone: !!row.has_phone,
-        has_contact_page: !!row.has_contact_page,
-        lead_type: row.lead_type,
-        lead_tag: row.lead_tag
-      } : null,
-      cold_email: row.generated_email || null
-    }));
-
-    res.json({
-      status: "success",
-      count: formatted.length,
-      data: formatted
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to fetch businesses", details: error.message });
   }
 });
 
