@@ -341,7 +341,7 @@ async function performEnrichment(websiteUrl) {
   if (painPoints.length > 2) score -= 10;
   score = Math.max(0, Math.min(100, score));
 
-  if (score >= 70 && !hasBookingSystem) {
+  if (!hasBookingSystem) {
     painPoints.push("no_booking_system");
   }
 
