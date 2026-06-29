@@ -58,7 +58,10 @@ Paragraph 2: The Pain Point Expansion
 - Briefly explain why this issue is costing them leads or hurting trust, then pitch the value of your solution.
 
 Paragraph 3: Social Proof & Example
-- Casually mention a relevant past project to build authority. For example: "We recently built a complex travel booking platform (https://best.so) from the ground up."
+- Casually mention our past project to build authority.
+- CRITICAL: You MUST use this exact example without altering the industry: "We recently built a complex travel booking platform (https://best.so) from the ground up." 
+- Do NOT claim best.so is a plumbing, roofing, or local service site. It is strictly a travel booking platform. 
+- You can relate it back to them by saying something like "and we can build a similar robust booking flow for your business."
 
 Paragraph 4: Booking Call
 - Soft invite for a quick chat (e.g., "Open to a quick chat?", "Worth exploring?").
