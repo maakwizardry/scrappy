@@ -208,8 +208,6 @@ function detectPainPoints($, html, copyrightYear) {
     if (lowerHtml.includes(kw)) issues.push(`weak_copy_${kw.replace(/\s/g, "_")}`);
   });
 
-  if (!detectAnalytics(html)) issues.push("no_analytics_tracking");
-
   const imgCount = $("img").length;
   if (imgCount === 0) issues.push("no_images");
 
@@ -217,7 +215,7 @@ function detectPainPoints($, html, copyrightYear) {
 }
 
 function classifyLead(enrichment) {
-  const { hasWebsite, cms, hasAnalytics, hasChatWidget, painPoints, copyrightYear } = enrichment;
+  const { hasWebsite, cms, painPoints, copyrightYear } = enrichment;
 
   if (!hasWebsite) return { lead_type: "web_design_lead", lead_tag: "no_website" };
 
@@ -226,10 +224,6 @@ function classifyLead(enrichment) {
   if (copyrightYear && copyrightYear < 2019) return { lead_type: "web_design_lead", lead_tag: "outdated_website" };
 
   if (cms === "wix" || cms === "squarespace") return { lead_type: "web_design_lead", lead_tag: `upgrade_from_${cms}` };
-
-  if (!hasAnalytics) return { lead_type: "seo_or_ads_lead", lead_tag: "no_analytics" };
-
-  if (!hasChatWidget) return { lead_type: "conversion_optimization_lead", lead_tag: "no_chat_widget" };
 
   return { lead_type: "general_outreach", lead_tag: "established_site" };
 }
@@ -324,7 +318,7 @@ async function performEnrichment(websiteUrl) {
 
   // ── Lead Classification ───────────────────────
   const { lead_type, lead_tag } = classifyLead({
-    hasWebsite: true, cms, hasAnalytics, hasChatWidget: !!chatWidget, painPoints, copyrightYear,
+    hasWebsite: true, cms, painPoints, copyrightYear,
   });
 
   // ── Raw text for AI ───────────────────────────
