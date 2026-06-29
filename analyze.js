@@ -34,118 +34,53 @@ async function initDB() {
 // ─────────────────────────────────────────────
 
 function buildPrompt(business, e) {
-  const currentYear = new Date().getFullYear();
-
-  const painLines = [];
-
-  if (e.lead_tag === "no_website") {
-    painLines.push("They have NO website at all — massive opportunity.");
-  }
-  if (e.copyrightYear && e.copyrightYear < 2020) {
-    painLines.push(`Their site copyright shows ${e.copyrightYear} — likely very outdated.`);
-  }
-  if (e.painPoints?.includes("not_mobile_optimized")) {
-    painLines.push("The site is NOT mobile-optimized (missing viewport meta tag).");
-  }
-  if (!e.hasAnalytics) {
-    painLines.push("No analytics tracking detected — they're flying blind on traffic.");
-  }
-  if (e.cms === "wix" || e.cms === "squarespace") {
-    painLines.push(`Site is built on ${e.cms} — often a sign of a business ready to upgrade.`);
-  }
-  if (!e.chatWidget) {
-    painLines.push("No live chat widget — missing real-time lead capture.");
-  }
-  if (!e.hasBlog) {
-    painLines.push("No blog/content section — zero SEO content strategy.");
-  }
-  if (!e.hasTestimonials) {
-    painLines.push("No testimonials or social proof visible on the site.");
-  }
-  if (e.painPoints?.includes("weak_copy_lorem_ipsum")) {
-    painLines.push("Placeholder lorem ipsum text still visible on the site!");
-  }
-
-  const hasLines = [];
-  if (e.hasAnalytics) hasLines.push("analytics tracking");
-  if (e.chatWidget) hasLines.push(`${e.chatWidget} chat`);
-  if (e.hasBlog) hasLines.push("a blog");
-  if (e.hasTestimonials) hasLines.push("testimonials");
-  if (e.hasPricingPage) hasLines.push("a pricing page");
-
-  const servicesStr = e.servicesOrProducts?.length
-    ? e.servicesOrProducts.slice(0, 6).join(", ")
-    : "not clearly listed";
-
   return `
-You are Rehan Kanak, Co-Founder of MaaK (https://maakhq.com).
+You are Rehan Kanak, Co-Founder of MaaK (https://maakhq.com), a web agency.
 
-Write cold outreach emails that feel like a real founder casually pointing out a website issue after a quick review.
+Write a personalized cold outreach email that feels like a real founder casually pointing out an opportunity after reviewing their business.
 
-The email should feel natural, slightly conversational, and not overly structured.
+=== YOUR STRATEGY ===
+Below is the complete JSON profile of the business, including their technical website stack, missing elements (pain points), and their online setup.
+Your job is to analyze this data, figure out the most glaring weakness or the biggest opportunity, and formulate a highly personalized pitch around it. 
+- If they don't have a website but are a service business, pitch a new site with an automated booking system.
+- If their site looks established but lacks a booking system, pitch integrating a seamless booking flow to stop losing leads.
+- If their site is outdated or missing mobile optimization, pitch a modernization.
+- Pick the SINGLE most compelling angle based on the data. Do NOT overwhelm them with multiple problems.
 
----
+=== EMAIL FORMATTING STRUCTURE ===
+The email MUST be formatted into exactly 4 distinct, separated paragraphs. Do not merge them into one block of text.
 
-=== CORE STYLE RULES ===
-- 3 to 4 short paragraphs max (not bullet points, not long blocks)
-- Each paragraph should be 1–3 sentences
-- No marketing or agency language
-- No hype words (transform, massive, crucial, game-changing, etc.)
-- No overly direct “sales pitch” tone
-- Not too short, not too long
-- Should feel like a thoughtful observation, not a pitch
+Paragraph 1: Introduction & Hook
+- Get straight to the point. No "I hope this finds you well."
+- Point out the specific issue or opportunity (the "pain point") you found on their site or lack thereof.
 
----
+Paragraph 2: The Pain Point Expansion
+- Briefly explain why this issue is costing them leads or hurting trust, then pitch the value of your solution.
 
-=== TONE ===
-- Founder-to-founder
-- Calm, grounded, observant
-- Slightly informal but professional
-- Like you’re commenting after quickly checking their site
+Paragraph 3: Social Proof & Example
+- Casually mention a relevant past project to build authority. For example: "We recently built a complex travel booking platform (https://best.so) from the ground up."
 
----
-
-=== STRUCTURE (FLEXIBLE) ===
-
-Paragraph 1:
-- One specific observation about their website (ONLY ONE issue)
-
-Paragraph 2:
-- Light explanation of what that usually affects (trust, leads, clarity, etc.)
-- Keep it subtle, not exaggerated
-
-Paragraph 3:
-- Mention one relevant experience/case study naturally:
-"We recently built a travel booking platform (https://best.so) with complex flows and integrations."
-
-Paragraph 4:
-- Soft invite to a 15-minute call
-- Include Calendly link naturally:
-https://calendly.com/workwithmaak/maak-discovery-call
-
----
-
-=== BUSINESS DATA ===
-Name: ${business.name}
-Website: ${business.website || "None"}
-
-Pick ONE issue from:
-${painLines.length ? painLines.slice(0,1).join("\n") : "missing analytics / weak trust signals"}
-
----
+Paragraph 4: Booking Call
+- Soft invite for a quick chat (e.g., "Open to a quick chat?", "Worth exploring?").
+- Include your Calendly link naturally: https://calendly.com/workwithmaak/maak-discovery-call
 
 === STRICT RULES ===
-- Only ONE issue per email
-- No multiple problems
-- No over-explaining
-- No hype language
-- No “marketing voice”
-- No long intros or conclusions
+- Subject line: Must be specific to them (e.g., "Thoughts on [Business Name]'s online setup"). Avoid generic subjects.
+- Tone: Direct, peer-to-peer, confident, grounded. No hype words (transform, massive, game-changing). No "agency" jargon.
+- Sign off as:
+  Rehan Kanak
+  Co-Founder, MaaK
+  https://maakhq.com
 
----
+=== BUSINESS CONTEXT ===
+Business Name: ${business.name}
+Website: ${business.website || "None"}
+
+Raw Enrichment Data:
+${JSON.stringify(e, null, 2)}
 
 === OUTPUT FORMAT ===
-Return JSON only:
+Return JSON ONLY:
 {
   "subject": "...",
   "body": "..."
