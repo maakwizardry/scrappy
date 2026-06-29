@@ -89,6 +89,30 @@ function detectChatWidget(html) {
   return null;
 }
 
+function detectBookingSystem(html, $) {
+  const bookingLinks = [
+    /calendly\.com/i, /acuityscheduling\.com/i, /setmore\.com/i,
+    /squareup\.com\/appointments/i, /vagaro\.com/i, /mindbodyonline\.com/i,
+    /simplybook\.me/i, /appointlet\.com/i, /fresha\.com/i, /booksy\.com/i,
+    /schedulicity\.com/i
+  ];
+  if (bookingLinks.some(regex => regex.test(html))) return true;
+
+  const ctaSelectors = [
+    "a.btn", "a.button", "button", ".cta", "[class*='cta']",
+    "a[class*='btn']", "a[class*='button']",
+  ];
+  let hasBookingCTA = false;
+  $(ctaSelectors.join(", ")).each((_, el) => {
+    const text = $(el).text().trim().toLowerCase();
+    if (text.includes("book") || text.includes("schedule") || text.includes("appointment")) {
+      hasBookingCTA = true;
+    }
+  });
+  
+  return hasBookingCTA;
+}
+
 function detectSocialLinks($) {
   const found = {};
   $("a[href]").each((_, el) => {
@@ -266,6 +290,7 @@ async function performEnrichment(websiteUrl) {
   const cms            = detectCMS(html, headers);
   const hasAnalytics   = detectAnalytics(html);
   const chatWidget     = detectChatWidget(html);
+  const hasBookingSystem = detectBookingSystem(html, $);
   const hasSSL         = finalUrl.startsWith("https://");
   const hasViewportMeta = !!$('meta[name="viewport"]').length;
 
@@ -315,6 +340,10 @@ async function performEnrichment(websiteUrl) {
   if (copyrightYear && copyrightYear < 2020) score -= 20;
   if (painPoints.length > 2) score -= 10;
   score = Math.max(0, Math.min(100, score));
+
+  if (score >= 70 && !hasBookingSystem) {
+    painPoints.push("no_booking_system");
+  }
 
   // ── Lead Classification ───────────────────────
   const { lead_type, lead_tag } = classifyLead({

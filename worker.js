@@ -17,7 +17,19 @@ async function initDB() {
 // ─────────────────────────────────────────────────────────────────────────────
 // FALLBACK — no website, or junk URL
 // ─────────────────────────────────────────────────────────────────────────────
-function noWebsiteEnrichment() {
+function needsBookingSystem(business) {
+  if (!business) return false;
+  const serviceKeywords = /salon|spa|hair|barber|nail|dentist|doctor|clinic|massage|cleaning|plumb|repair|mechanic|gym|fitness|yoga|consult|lawyer|attorney|coach|tutor|therapy|chiropractor/i;
+  const target = `${business.name || ""} ${business.keyword || ""}`;
+  return serviceKeywords.test(target);
+}
+
+function noWebsiteEnrichment(business) {
+  const painPoints = ["no_website"];
+  if (business && needsBookingSystem(business)) {
+    painPoints.push("needs_booking_system");
+  }
+
   return {
     hasWebsite: false, finalUrl: null, sourceType: "unknown",
     title: null, metaDescription: null, h1: null, heroP: null,
@@ -26,7 +38,7 @@ function noWebsiteEnrichment() {
     hasContactPage: false, hasPricingPage: false, hasBlog: false, hasAboutPage: false,
     hasServicesPage: false, hasTestimonials: false, hasTeamPage: false,
     hasEmail: false, hasPhone: false, internalLinksCount: 0, imagesCount: 0,
-    copyrightYear: null, painPoints: ["no_website"],
+    copyrightYear: null, painPoints: painPoints,
     score: 0, lead_type: "web_design_lead", lead_tag: "no_website",
     pageText: "",
   };
@@ -163,7 +175,7 @@ async function processNextBusiness() {
   if (!business.website) {
     // ── No URL at all ─────────────────────────────────────────────────────
     console.log("   -> No website. Storing fallback...");
-    enrichmentData = noWebsiteEnrichment();
+    enrichmentData = noWebsiteEnrichment(business);
 
   } else {
     // ── Step 1: Pre-validate URL ───────────────────────────────────────────
@@ -174,7 +186,7 @@ async function processNextBusiness() {
       // Junk URL — classify, skip heavy scraping, move on
       console.warn(`   ⚠️  Skipping [${validation.reason}]: ${validation.notes}`);
       enrichmentData = {
-        ...noWebsiteEnrichment(),
+        ...noWebsiteEnrichment(business),
         hasWebsite: false,
         finalUrl:   validation.finalUrl,
         sourceType: validation.reason,
@@ -197,7 +209,7 @@ async function processNextBusiness() {
       } catch (err) {
         console.error(`   ❌ Enrichment failed: ${err.message}`);
         enrichmentData = {
-          ...noWebsiteEnrichment(),
+          ...noWebsiteEnrichment(business),
           hasWebsite:  true,
           sourceType:  "fetch_failed",
           lead_tag:    "fetch_failed",
