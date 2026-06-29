@@ -185,14 +185,15 @@ async function processNextBusiness() {
     if (!validation.valid) {
       // Junk URL — classify, skip heavy scraping, move on
       console.warn(`   ⚠️  Skipping [${validation.reason}]: ${validation.notes}`);
+      const fallback = noWebsiteEnrichment(business);
       enrichmentData = {
-        ...noWebsiteEnrichment(business),
+        ...fallback,
         hasWebsite: false,
         finalUrl:   validation.finalUrl,
         sourceType: validation.reason,
         lead_type:  resolveLeadType(validation.lead_tag),
         lead_tag:   validation.lead_tag,
-        painPoints: [validation.reason],
+        painPoints: [...fallback.painPoints, validation.reason],
       };
 
     } else {
@@ -208,12 +209,13 @@ async function processNextBusiness() {
         console.log(`   ⚠️  Pain: ${enrichmentData.painPoints.join(", ") || "none"}`);
       } catch (err) {
         console.error(`   ❌ Enrichment failed: ${err.message}`);
+        const fallback = noWebsiteEnrichment(business);
         enrichmentData = {
-          ...noWebsiteEnrichment(business),
-          hasWebsite:  true,
+          ...fallback,
+          hasWebsite:  false,
           sourceType:  "fetch_failed",
           lead_tag:    "fetch_failed",
-          painPoints:  ["fetch_failed"],
+          painPoints:  [...fallback.painPoints, "fetch_failed"],
         };
       }
     }
