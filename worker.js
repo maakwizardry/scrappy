@@ -37,7 +37,7 @@ function noWebsiteEnrichment(business) {
     businessSummary: null, servicesOrProducts: [], ctaTexts: [], primaryCTA: null, socialLinks: [],
     hasContactPage: false, hasPricingPage: false, hasBlog: false, hasAboutPage: false,
     hasServicesPage: false, hasTestimonials: false, hasTeamPage: false,
-    hasEmail: false, hasPhone: false, internalLinksCount: 0, imagesCount: 0,
+    hasEmail: false, email: null, hasPhone: false, internalLinksCount: 0, imagesCount: 0,
     copyrightYear: null, painPoints: painPoints,
     score: 0, lead_type: "web_design_lead", lead_tag: "no_website",
     pageText: "",
@@ -76,7 +76,7 @@ async function saveEnrichment(businessId, website, e) {
       business_summary, services_or_products, cta_texts, primary_cta, social_links,
       has_contact_page, has_pricing_page, has_blog, has_about_page,
       has_services_page, has_testimonials, has_team_page,
-      has_email, has_phone,
+      has_email, email, has_phone,
       internal_links_count, images_count,
       copyright_year, pain_points,
       score, lead_type, lead_tag,
@@ -89,7 +89,7 @@ async function saveEnrichment(businessId, website, e) {
       ?, ?, ?, ?, ?,
       ?, ?, ?, ?,
       ?, ?, ?,
-      ?, ?,
+      ?, ?, ?,
       ?, ?,
       ?, ?,
       ?, ?, ?,
@@ -120,6 +120,7 @@ async function saveEnrichment(businessId, website, e) {
       has_testimonials      = VALUES(has_testimonials),
       has_team_page         = VALUES(has_team_page),
       has_email             = VALUES(has_email),
+      email                 = VALUES(email),
       has_phone             = VALUES(has_phone),
       internal_links_count  = VALUES(internal_links_count),
       images_count          = VALUES(images_count),
@@ -142,7 +143,7 @@ async function saveEnrichment(businessId, website, e) {
       JSON.stringify(e.socialLinks),
       e.hasContactPage, e.hasPricingPage, e.hasBlog, e.hasAboutPage,
       e.hasServicesPage, e.hasTestimonials, e.hasTeamPage,
-      e.hasEmail, e.hasPhone,
+      e.hasEmail, e.email || null, e.hasPhone,
       e.internalLinksCount, e.imagesCount,
       e.copyrightYear,
       JSON.stringify(e.painPoints),
@@ -222,6 +223,16 @@ async function processNextBusiness() {
   }
 
   await saveEnrichment(business.id, business.website, enrichmentData);
+
+  // Write email back to the businesses row for easy access
+  if (enrichmentData.email) {
+    await db.execute(
+      `UPDATE businesses SET email = ? WHERE id = ? AND (email IS NULL OR email = '')`,
+      [enrichmentData.email, business.id]
+    );
+    console.log(`   📧 Email found: ${enrichmentData.email}`);
+  }
+
   await db.execute(
     `UPDATE businesses SET enriched = 1, enriched_at = NOW() WHERE id = ?`,
     [business.id]

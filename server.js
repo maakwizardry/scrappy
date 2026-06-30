@@ -114,7 +114,7 @@ app.post("/scrape", async (req, res) => {
 
     for (const item of results) {
       await db.execute(
-          `INSERT INTO businesses 
+          `INSERT INTO businesses
         (name, phone, address, website, profile_url, keyword, location)
         VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [

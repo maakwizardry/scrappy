@@ -252,6 +252,37 @@ function classifyLead(enrichment) {
   return { lead_type: "general_outreach", lead_tag: "established_site" };
 }
 
+const EMAIL_BLACKLIST = /\.(png|jpg|jpeg|gif|svg|webp|woff|ttf|css|js)$/i;
+const JUNK_EMAIL_DOMAINS = /sentry\.io|example\.com|yourdomain|domain\.com|email\.com|test\.com/i;
+
+function extractEmail($, html) {
+  // 1. Priority: visible mailto: links (most trustworthy)
+  let found = null;
+  $("a[href^='mailto:']").each((_, el) => {
+    if (found) return;
+    const href = $(el).attr("href") || "";
+    const addr = href.replace(/^mailto:/i, "").split("?")[0].trim().toLowerCase();
+    if (addr && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr) && !JUNK_EMAIL_DOMAINS.test(addr)) {
+      found = addr;
+    }
+  });
+  if (found) return found;
+
+  // 2. Fallback: scan visible text only (strip script/style to avoid bundle noise)
+  const $2 = require("cheerio").load(html);
+  $2("script, style, noscript, head").remove();
+  const visibleText = $2.root().text();
+  const match = visibleText.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+  if (match) {
+    const addr = match[0].toLowerCase();
+    if (!JUNK_EMAIL_DOMAINS.test(addr) && !EMAIL_BLACKLIST.test(addr)) {
+      return addr;
+    }
+  }
+
+  return null;
+}
+
 function cleanPageText($) {
   $("script, style, noscript, iframe, svg, head").remove();
   const text = $.root().text().replace(/\s+/g, " ").trim();
@@ -321,7 +352,8 @@ async function performEnrichment(websiteUrl) {
     || navLinks.some((l) => ABOUT_PAGE_PATTERNS.test(l));
 
   // ── Inline contact info ───────────────────────
-  const hasEmail = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i.test(html);
+  const extractedEmail = extractEmail($, html);
+  const hasEmail = !!extractedEmail;
   const hasPhone = /(\+?\d[\d\s\-().]{7,}\d)/.test(html);
 
   // ── Pain Signals ─────────────────────────────
@@ -386,6 +418,7 @@ async function performEnrichment(websiteUrl) {
     hasTestimonials,
     hasTeamPage,
     hasEmail,
+    email: extractedEmail,      // actual email address string or null
     hasPhone,
     internalLinksCount,
     imagesCount,
