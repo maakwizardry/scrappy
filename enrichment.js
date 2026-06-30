@@ -239,15 +239,29 @@ function detectPainPoints($, html, copyrightYear) {
 }
 
 function classifyLead(enrichment) {
-  const { hasWebsite, cms, painPoints, copyrightYear } = enrichment;
+  const { hasWebsite, painPoints, copyrightYear, cms } = enrichment;
 
-  if (!hasWebsite) return { lead_type: "web_design_lead", lead_tag: "no_website" };
+  // 1. No website = strongest intent
+  if (!hasWebsite) {
+    return { lead_type: "web_design_lead", lead_tag: "no_website" };
+  }
 
-  if (painPoints.includes("not_mobile_optimized")) return { lead_type: "web_design_lead", lead_tag: "not_mobile_friendly" };
+  // 2. Strong UX / conversion issues
+  if (painPoints.includes("no_booking_system")) {
+    return { lead_type: "web_design_lead", lead_tag: "no_booking_system" };
+  }
 
-  if (copyrightYear && copyrightYear < 2019) return { lead_type: "web_design_lead", lead_tag: "outdated_website" };
+  if (painPoints.includes("not_mobile_optimized")) {
+    return { lead_type: "web_design_lead", lead_tag: "not_mobile_friendly" };
+  }
 
-  if (cms === "wix" || cms === "squarespace") return { lead_type: "web_design_lead", lead_tag: `upgrade_from_${cms}` };
+  // 3. Outdated content (time-based signal)
+  if (copyrightYear && copyrightYear < 2019) {
+    return { lead_type: "web_design_lead", lead_tag: "outdated_website" };
+  }
+
+  // 4. CMS becomes CONTEXT, not a category
+  // (don’t create lead_tag from CMS)
 
   return { lead_type: "general_outreach", lead_tag: "established_site" };
 }
