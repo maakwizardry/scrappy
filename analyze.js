@@ -177,6 +177,7 @@ async function analyzeNext() {
   const [rows] = await db.execute(`
     SELECT * FROM businesses
     WHERE enriched = 1 AND analyzed = 0
+      AND email IS NOT NULL AND email != ''
     ORDER BY created_at ASC
     LIMIT 1
   `);
