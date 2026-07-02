@@ -100,8 +100,13 @@ You MUST include this exact sentence:
 
 "We recently built a complex travel booking platform (https://best.so) from the ground up."
 
-Then add:
-"and we can build a similar booking flow for your business."
+Then add ONE of the following (choose based on lead_tag):
+
+- If lead_tag is "no_website":
+  → "and we can build a similar end-to-end online presence for your business — something that helps customers find you, trust you, and reach out."
+
+- For all other lead_tags (no_booking_system, not_mobile_friendly, outdated_website, established_site):
+  → "and we can build a similar experience for your business."
 
 Paragraph 4 — Soft CTA
 - Light invitation to chat
