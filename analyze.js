@@ -26,113 +26,211 @@ async function initDB() {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
   });
-  console.log("✅ Analysis DB connected");
+  console.log("OK Analysis DB connected");
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
+// NICHE PLAYBOOK
+// ---------------------------------------------
+
+function getNichePlaybook(keyword) {
+  const k = (keyword || "").toLowerCase();
+
+  if (k.includes("plumb")) {
+    return [
+      "NICHE: Plumbing",
+      "",
+      "Observation angle:",
+      "  Customers likely have to call to schedule plumbing service -- no online booking visible.",
+      "",
+      "Business impact angle:",
+      "  If someone visits after hours or while the team is on another job, there is a good chance",
+      "  they will call another plumber instead.",
+      "",
+      "Solution angle:",
+      "  We build websites with online booking, emergency service requests, photo uploads, and",
+      "  automated confirmations so customers can schedule without waiting on the phone.",
+      "",
+      "CTA angle:",
+      "  Would you be open to a quick 15-minute call next week to see if this could help your business?",
+    ].join("\n");
+  }
+
+  if (
+    k.includes("hvac") ||
+    k.includes("heating") ||
+    k.includes("cooling") ||
+    k.includes("air condition")
+  ) {
+    return [
+      "NICHE: HVAC",
+      "",
+      "Observation angle:",
+      "  Customers still need to call to book HVAC service or maintenance -- no self-serve option visible.",
+      "",
+      "Business impact angle:",
+      "  During peak heating and cooling seasons, every missed call can mean a lost installation",
+      "  or service appointment.",
+      "",
+      "Solution angle:",
+      "  We build booking systems that let customers schedule appointments online, request quotes,",
+      "  sign up for maintenance plans, and receive automatic reminders.",
+      "",
+      "CTA angle:",
+      "  Would you be open to a quick 15-minute conversation to see how this could work for your company?",
+    ].join("\n");
+  }
+
+  if (k.includes("electric")) {
+    return [
+      "NICHE: Electrician",
+      "",
+      "Observation angle:",
+      "  There is no simple way for customers to request electrical work online -- it all goes through a call.",
+      "",
+      "Business impact angle:",
+      "  Many homeowners prefer requesting quotes online instead of calling during work hours,",
+      "  and that friction can lead them to choose another contractor.",
+      "",
+      "Solution angle:",
+      "  We build websites that let customers request estimates, upload photos, schedule appointments,",
+      "  and automatically notify your team.",
+      "",
+      "CTA angle:",
+      "  Would you be open to a brief 15-minute call to explore whether this would be useful?",
+    ].join("\n");
+  }
+
+  if (k.includes("roof")) {
+    return [
+      "NICHE: Roofing",
+      "",
+      "Observation angle:",
+      "  Homeowners have to call to request a roofing estimate -- no online request form visible.",
+      "",
+      "Business impact angle:",
+      "  Roof replacements and repairs are high-value jobs, so making it easier to request an estimate",
+      "  can help capture more qualified leads.",
+      "",
+      "Solution angle:",
+      "  We build websites that allow homeowners to request inspections, upload roof photos, schedule",
+      "  appointments, and submit insurance-related information online.",
+      "",
+      "CTA angle:",
+      "  Would you be available for a quick 15-minute chat next week?",
+    ].join("\n");
+  }
+
+  if (k.includes("landscap") || k.includes("lawn") || k.includes("garden")) {
+    return [
+      "NICHE: Landscaping",
+      "",
+      "Observation angle:",
+      "  Customers cannot easily book landscaping services online -- the process seems to require a phone call.",
+      "",
+      "Business impact angle:",
+      "  Many homeowners want to request lawn care or seasonal services outside business hours,",
+      "  and a manual process can result in missed opportunities.",
+      "",
+      "Solution angle:",
+      "  We build booking systems that automate scheduling, recurring maintenance, reminders,",
+      "  and customer communication.",
+      "",
+      "CTA angle:",
+      "  Would you be open to a short 15-minute conversation to see if this would fit your business?",
+    ].join("\n");
+  }
+
+  // Fallback for unrecognised niches
+  return [
+    "NICHE: General local service business",
+    "",
+    "Observation angle:",
+    "  Customers likely need to call to book or request a service -- no online option visible.",
+    "",
+    "Business impact angle:",
+    "  Potential clients who cannot self-serve may move on to a competitor who lets them book instantly.",
+    "",
+    "Solution angle:",
+    "  We build websites that let customers book, request quotes, and communicate without a phone call.",
+    "",
+    "CTA angle:",
+    "  Would you be open to a quick 15-minute call to see if this would be a good fit?",
+  ].join("\n");
+}
+
+// ---------------------------------------------
 // PROMPT BUILDER
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 function buildPrompt(business, e) {
+  const nicheBlock = getNichePlaybook(business.keyword);
+
   return `
 You are Rehan Kanak, Co-Founder of MaaK (https://maakhq.com), a web agency.
 
-You are writing a short, casual cold email after quickly reviewing a local service business website.
+Write a short, direct cold email. No fluff. No filler. Get to the point fast.
+The whole email must be under 100 words.
 
-The goal is NOT to sell aggressively — it is to point out a simple, real opportunity you noticed.
+=== LEAD TAG (STRICT) ===
+lead_tag tells you the ONE problem to mention. Do not invent others.
 
-=== SOURCE OF TRUTH ===
-Only use the enrichment data provided below.
-Do NOT assume anything outside it.
+- no_website        -> no online presence at all
+- no_booking_system -> customers must call to book
+- not_mobile_friendly -> site is hard to use on mobile
+- outdated_website  -> site looks behind modern standards
+- established_site  -> mention one small improvement (light touch)
 
-=== LEAD TAG PLAYBOOK (STRICT) ===
+=== NICHE GUIDE ===
+Use these angles. Adapt the language -- do not copy word-for-word.
 
-Follow this mapping exactly:
+${nicheBlock}
 
-1. no_website
-→ Mention: no website / no online booking presence
+=== EMAIL FORMAT (EXACTLY 3 PARAGRAPHS) ===
 
-2. no_booking_system
-→ Mention: customers likely need to call instead of booking online
+Paragraph 1 -- Intro + what they are missing (2 sentences MAX)
+Open with a quick, human intro -- who you are and that you took a look at their site.
+Then state the ONE gap you noticed (use the niche observation angle). Keep it soft, not accusatory.
 
-3. not_mobile_friendly
-→ Mention: mobile users may struggle with usability or conversion
-
-4. outdated_website
-→ Mention: site feels a bit outdated or behind modern standards
-
-5. established_site
-→ Mention ONLY a small improvement opportunity (keep very light)
-
-RULES:
-- Do NOT combine multiple lead_tags
-- Do NOT exaggerate issues
-- Do NOT invent problems
-- lead_tag is final truth
-
-=== TONE RULE (IMPORTANT) ===
-Paragraph 1 MUST sound human and observational.
-
-Use phrases like:
-- "I took a quick look"
-- "I noticed"
-- "it looks like"
-- "didn't see"
-
-Avoid absolute statements like:
-- "you don't have"
-- "your site has no"
-
-=== EMAIL STRUCTURE (EXACTLY 4 PARAGRAPHS) ===
-
-Paragraph 1 — Observation (VERY IMPORTANT)
-- Start naturally
-- Mention ONE observation from enrichment
-- Must sound like a real quick manual check of the site
-- Keep slightly uncertain and human
-
-Paragraph 2 — Impact
-- Explain simple real-world friction (lost leads, phone dependency, etc.)
-- Keep it practical, no theory, no marketing language
-
-Paragraph 3 — Proof
-You MUST include this exact sentence:
-
+Paragraph 2 -- What we offer + how it helps them (2-3 sentences MAX)
+First sentence MUST be exactly:
 "We recently built a complex travel booking platform (https://best.so) from the ground up."
 
-Then add ONE of the following (choose based on lead_tag):
+Then describe what you can build for them and the direct business benefit:
+- no_website -> "We can build a similar online presence for your business -- so customers can find you, trust you, and reach out without picking up the phone."
+- all others -> Use the niche solution angle + one concrete benefit in one clean sentence.
 
-- If lead_tag is "no_website":
-  → "and we can build a similar end-to-end online presence for your business — something that helps customers find you, trust you, and reach out."
+Paragraph 3 -- Outro + meeting link (1-2 sentences MAX)
+Light, no-pressure close. Use the niche CTA angle.
+Include: https://calendly.com/workwithmaak/maak-discovery-call
 
-- For all other lead_tags (no_booking_system, not_mobile_friendly, outdated_website, established_site):
-  → "and we can build a similar experience for your business."
-
-Paragraph 4 — Soft CTA
-- Light invitation to chat
-- Include Calendly:
-https://calendly.com/workwithmaak/maak-discovery-call
+=== RULES ===
+- Max 100 words total
+- No bullet points in the email body
+- No sign-off line
+- Every sentence must earn its place -- cut anything that does not add value
 
 === OUTPUT FORMAT ===
-Return JSON ONLY:
+Return JSON ONLY. You MUST use \\n\\n in the "body" to separate the 3 paragraphs. Do not output a single wall of text.
 
 {
   "subject": "Thoughts on [Business Name]'s online setup",
-  "body": "4 paragraph email here"
+  "body": "Paragraph 1 here\\n\\nParagraph 2 here\\n\\nParagraph 3 here"
 }
 
 === BUSINESS DATA ===
 Name: ${business.name}
 Website: ${business.website || "None"}
+Keyword: ${business.keyword || "general"}
 
 === ENRICHMENT DATA ===
 ${JSON.stringify(e, null, 2)}
 `.trim();
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // MAIN FUNCTION
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 async function generateOutreachEmail(business, enrichment) {
   const prompt = buildPrompt(business, enrichment);
@@ -147,7 +245,7 @@ async function generateOutreachEmail(business, enrichment) {
     ],
     temperature: 0.7,
 
-    // 🔥 forces valid JSON output
+    // forces valid JSON output
     response_format: { type: "json_object" },
   });
 
@@ -172,9 +270,9 @@ async function generateOutreachEmail(business, enrichment) {
   };
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // WORKER / SERVER INTEGRATION
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 async function analyzeNext() {
   if (!db) await initDB();
@@ -192,7 +290,7 @@ async function analyzeNext() {
   }
 
   const business = rows[0];
-  console.log(`\n⏳ Analyzing: ${business.name} (${business.website || "No website"})`);
+  console.log(`\n Analyzing: ${business.name} (${business.website || "No website"})`);
 
   let enrichmentData = {};
   const [enrichRows] = await db.execute(
@@ -206,10 +304,18 @@ async function analyzeNext() {
   try {
     console.log(`   -> Generating email...`);
     const emailData = await generateOutreachEmail(business, enrichmentData);
-    
-    const emailText = emailData.subject 
-      ? `Subject: ${emailData.subject}\n\n${emailData.body}`
-      : emailData.body;
+
+    const signature = `
+
+Rehan Kanak
+Co-Founded, MaaK
+Quebec, Canada
+rehan@maakhq.com
++1 (647) 472 7894`;
+
+    const emailText = emailData.subject
+      ? `Subject: ${emailData.subject}\n\n${emailData.body}${signature}`
+      : `${emailData.body}${signature}`;
 
     await db.execute(
       `INSERT INTO business_analysis (business_id, website, generated_email, created_at) VALUES (?, ?, ?, NOW())`,
@@ -221,10 +327,10 @@ async function analyzeNext() {
       [business.id]
     );
 
-    console.log(`   ✅ Email generated and saved.`);
+    console.log(`   OK Email generated and saved.`);
     return { status: "success", business: business.name };
   } catch (err) {
-    console.error(`   ❌ Email generation failed: ${err.message}`);
+    console.error(`   ERROR Email generation failed: ${err.message}`);
     // Mark as analyzed so we don't infinitely retry failed queries
     await db.execute(
       `UPDATE businesses SET analyzed = 1, analyzed_at = NOW() WHERE id = ?`,
@@ -236,20 +342,20 @@ async function analyzeNext() {
 
 async function startWorker() {
   await initDB();
-  console.log("🚀 Analysis Job Queue Worker Started");
-  
+  console.log("Analysis Job Queue Worker Started");
+
   while (true) {
     try {
       const result = await analyzeNext();
       if (result.status === "done") {
-        console.log("💤 Analysis queue empty. Waiting 30 seconds...");
-        await new Promise(r => setTimeout(r, 30000));
+        console.log("Analysis queue empty. Waiting 30 seconds...");
+        await new Promise((r) => setTimeout(r, 30000));
       } else {
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise((r) => setTimeout(r, 5000));
       }
     } catch (e) {
-      console.error("🔥 Critical Queue Error:", e.message);
-      await new Promise(r => setTimeout(r, 10000));
+      console.error("Critical Queue Error:", e.message);
+      await new Promise((r) => setTimeout(r, 10000));
     }
   }
 }
