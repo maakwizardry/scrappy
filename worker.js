@@ -66,6 +66,11 @@ function resolveLeadType(lead_tag) {
 // ─────────────────────────────────────────────────────────────────────────────
 // DB UPSERT
 // ─────────────────────────────────────────────────────────────────────────────
+function trunc(str, maxLen = 255) {
+  if (!str) return str;
+  return str.length > maxLen ? str.substring(0, maxLen - 3) + '...' : str;
+}
+
 async function saveEnrichment(businessId, website, e) {
   await db.execute(
     `
@@ -134,12 +139,12 @@ async function saveEnrichment(businessId, website, e) {
     `,
     [
       businessId, website, e.finalUrl, e.sourceType,
-      e.title, e.metaDescription, e.h1, e.heroP,
-      e.cms, e.hasSSL, e.hasAnalytics, e.chatWidget, e.hasViewportMeta,
+      trunc(e.title, 500), e.metaDescription, trunc(e.h1, 500), e.heroP,
+      trunc(e.cms, 50), e.hasSSL, e.hasAnalytics, trunc(e.chatWidget, 50), e.hasViewportMeta,
       e.businessSummary,
       JSON.stringify(e.servicesOrProducts),
       JSON.stringify(e.ctaTexts),
-      e.primaryCTA,
+      trunc(e.primaryCTA, 255),
       JSON.stringify(e.socialLinks),
       e.hasContactPage, e.hasPricingPage, e.hasBlog, e.hasAboutPage,
       e.hasServicesPage, e.hasTestimonials, e.hasTeamPage,
