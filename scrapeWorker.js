@@ -15,11 +15,20 @@ const mysql = require("mysql2/promise");
 const MAX_PAGES = 20;
 
 const KEYWORDS = [
-  "plumber",
-  "electrician",
-  "hvac",
-  "roofer",
-  "landscaping"
+  // "plumber",
+  // "electrician",
+  // "hvac",
+  // "roofer",
+  // "landscaping"
+  "dentist",
+  "dental clinic",
+  "physiotherapy",
+  "rehab clinic",
+  "chiropractor",
+  "medical clinic",
+  "family doctor",
+  "optometrist",
+  "eye clinic"
 ];
 
 // Load thousands of Canadian cities dynamically
