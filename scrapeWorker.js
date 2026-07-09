@@ -20,7 +20,6 @@ const KEYWORDS = [
   // "hvac",
   // "roofer",
   // "landscaping"
-  "dental clinic",
   "physiotherapy",
   "rehab clinic",
   "chiropractor",
