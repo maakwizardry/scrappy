@@ -20,7 +20,6 @@ const KEYWORDS = [
   // "hvac",
   // "roofer",
   // "landscaping"
-  "dentist",
   "dental clinic",
   "physiotherapy",
   "rehab clinic",
@@ -28,7 +27,12 @@ const KEYWORDS = [
   "medical clinic",
   "family doctor",
   "optometrist",
-  "eye clinic"
+  "eye clinic",
+  "electricians",
+  "Lawn Maintenance",
+  "Snow Removal Service",
+  "Auto Detailing",
+  "Beauty Salons"
 ];
 
 // Load thousands of Canadian cities dynamically
@@ -76,17 +80,32 @@ async function businessExists(name, phone) {
 async function startScraping() {
   await initDB();
   
+  const progressFile = "./progress.json";
+  let progress = { locationIndex: 0, keywordIndex: 0 };
+  if (fs.existsSync(progressFile)) {
+    try {
+      progress = JSON.parse(fs.readFileSync(progressFile, "utf8"));
+    } catch (e) {}
+  }
+
   console.log("🚀 Automated Scraper Worker Started");
   console.log(`Will scan ${KEYWORDS.length} keywords across ${LOCATIONS.length} locations.`);
+  console.log(`Resuming at Location Index: ${progress.locationIndex}, Keyword Index: ${progress.keywordIndex}`);
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
   });
 
-  for (const keyword of KEYWORDS) {
-    for (const location of LOCATIONS) {
-      console.log(`\n🔍 Searching: ${keyword} in ${location}`);
+  let startL = progress.locationIndex;
+
+  for (let k = progress.keywordIndex; k < KEYWORDS.length; k++) {
+    const keyword = KEYWORDS[k];
+
+    for (let l = startL; l < LOCATIONS.length; l++) {
+      const location = LOCATIONS[l];
+      
+      console.log(`\n🔍 Searching: ${keyword} in ${location} (Location ${l+1}/${LOCATIONS.length})`);
       
       let consecutiveEmptyPages = 0;
       
@@ -169,17 +188,27 @@ async function startScraping() {
         }
       }
       
-      // Wait between different locations/keywords
+      // Save progress after each location is complete
+      fs.writeFileSync(progressFile, JSON.stringify({ keywordIndex: k, locationIndex: l + 1 }));
+
+      // Wait between different locations
       console.log(`   ⏳ Waiting before next search...`);
       await delay(5000 + Math.random() * 5000);
     }
+    
+    // Reset location index for the next keyword
+    startL = 0;
+    fs.writeFileSync(progressFile, JSON.stringify({ keywordIndex: k + 1, locationIndex: 0 }));
   }
 
   await browser.close();
   console.log("\n🎉 Scraping cycle completed!");
   
-  // Optionally, we could schedule it to restart again, or just let PM2 restart it 
-  // or use node-cron to trigger it periodically. For now, it exits when done.
+  // Clean up progress file when fully done
+  if (fs.existsSync(progressFile)) {
+    fs.unlinkSync(progressFile);
+  }
+  
   process.exit(0);
 }
 
