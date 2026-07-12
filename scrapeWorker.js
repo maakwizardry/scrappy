@@ -12,26 +12,14 @@ const mysql = require("mysql2/promise");
 
 // --- CONFIGURATION ---
 
-const MAX_PAGES = 20;
+const MAX_PAGES = 30;
 
 const KEYWORDS = [
-  // "plumber",
-  // "electrician",
-  // "hvac",
-  // "roofer",
-  // "landscaping"
-  "physiotherapy",
-  "rehab clinic",
-  "chiropractor",
-  "medical clinic",
-  "family doctor",
-  "optometrist",
-  "eye clinic",
-  "electricians",
-  "Lawn Maintenance",
-  "Snow Removal Service",
-  "Auto Detailing",
-  "Beauty Salons"
+  "House Cleaning Service",
+  "Residential Cleaning Services",
+  "Home Cleaning Services",
+  "Maid Service",
+  "Deep Cleaning Service"
 ];
 
 // Load thousands of Canadian cities dynamically
