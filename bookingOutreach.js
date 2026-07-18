@@ -105,6 +105,8 @@ async function processNextBookingLead() {
   if (!db) await initDB();
 
   // Query for qualified home cleaning service businesses ONLY
+  // Exact matching for: Residential Cleaning Services, Home Cleaning Services,
+  // Maid Service, Deep Cleaning Service, House Cleaning Service
   const [rows] = await db.execute(`
     SELECT b.*, e.pain_points, e.lead_tag, e.lead_type
     FROM businesses b
@@ -112,8 +114,8 @@ async function processNextBookingLead() {
     WHERE b.enriched = 1
       AND b.booking_analyzed = 0
       AND (b.email IS NOT NULL OR b.phone IS NOT NULL)
-      AND (b.keyword REGEXP 'residential.*clean|home.*clean|house.*clean|maid|deep.*clean|housekeep'
-           OR b.name REGEXP 'residential.*clean|home.*clean|house.*clean|maid|deep.*clean|housekeep')
+      AND (b.keyword REGEXP 'residential cleaning|home cleaning|house cleaning|maid service|deep cleaning service|housekeeping'
+           OR b.name REGEXP 'residential cleaning|home cleaning|house cleaning|maid service|deep cleaning service|housekeeping')
     ORDER BY b.created_at ASC
     LIMIT 1
   `);
