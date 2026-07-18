@@ -112,8 +112,8 @@ async function processNextBookingLead() {
     WHERE b.enriched = 1
       AND b.booking_analyzed = 0
       AND (b.email IS NOT NULL OR b.phone IS NOT NULL)
-      AND (b.keyword REGEXP 'clean|maid|housekeep|janitor'
-           OR b.name REGEXP 'clean|maid|housekeep|janitor')
+      AND (b.keyword REGEXP 'residential.*clean|home.*clean|house.*clean|maid|deep.*clean|housekeep'
+           OR b.name REGEXP 'residential.*clean|home.*clean|house.*clean|maid|deep.*clean|housekeep')
     ORDER BY b.created_at ASC
     LIMIT 1
   `);
