@@ -113,9 +113,10 @@ async function processNextBookingLead() {
     LEFT JOIN business_enrichment e ON b.id = e.business_id
     WHERE b.enriched = 1
       AND b.booking_analyzed = 0
-      AND (b.email IS NOT NULL OR b.phone IS NOT NULL)
-      AND (b.keyword REGEXP 'residential cleaning|home cleaning|house cleaning|maid service|deep cleaning service|housekeeping'
-           OR b.name REGEXP 'residential cleaning|home cleaning|house cleaning|maid service|deep cleaning service|housekeeping')
+      AND b.email IS NOT NULL
+      AND b.email != ''
+      AND (b.keyword IN ('Residential Cleaning Services', 'Home Cleaning Services', 'Maid Service', 'House Cleaning Service', 'Deep Cleaning Service')
+           OR b.name IN ('Residential Cleaning Services', 'Home Cleaning Services', 'Maid Service', 'House Cleaning Service', 'Deep Cleaning Service'))
     ORDER BY b.created_at ASC
     LIMIT 1
   `);
