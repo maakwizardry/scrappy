@@ -1,0 +1,579 @@
+<title>USA Pipeline — Home Cleaning Outreach Architecture</title>
+<style>
+  :root {
+    --bg: #eef1f5;
+    --panel: #ffffff;
+    --panel-2: #f6f8fb;
+    --ink: #1b2430;
+    --ink-dim: #5b6577;
+    --ink-faint: #8994a6;
+    --line: #d3d9e2;
+    --accent: #2f6fed;
+    --accent-soft: #e8effe;
+    --accent-warm: #c97a1a;
+    --accent-warm-soft: #fbeedb;
+    --store: #1f8a6e;
+    --store-soft: #e4f5ef;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", "Roboto Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --display: -apple-system, BlinkMacSystemFont, "Segoe UI Semibold", "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --panel: #141a22;
+      --panel-2: #101620;
+      --ink: #e6eaf0;
+      --ink-dim: #8996a8;
+      --ink-faint: #5b6577;
+      --line: #262e3a;
+      --accent: #5b9dff;
+      --accent-soft: #16233a;
+      --accent-warm: #f0a848;
+      --accent-warm-soft: #2a2013;
+      --store: #4fd6ab;
+      --store-soft: #10261f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117;
+    --panel: #141a22;
+    --panel-2: #101620;
+    --ink: #e6eaf0;
+    --ink-dim: #8996a8;
+    --ink-faint: #5b6577;
+    --line: #262e3a;
+    --accent: #5b9dff;
+    --accent-soft: #16233a;
+    --accent-warm: #f0a848;
+    --accent-warm-soft: #2a2013;
+    --store: #4fd6ab;
+    --store-soft: #10261f;
+  }
+  :root[data-theme="light"] {
+    --bg: #eef1f5;
+    --panel: #ffffff;
+    --panel-2: #f6f8fb;
+    --ink: #1b2430;
+    --ink-dim: #5b6577;
+    --ink-faint: #8994a6;
+    --line: #d3d9e2;
+    --accent: #2f6fed;
+    --accent-soft: #e8effe;
+    --accent-warm: #c97a1a;
+    --accent-warm-soft: #fbeedb;
+    --store: #1f8a6e;
+    --store-soft: #e4f5ef;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  /* ---------- header ---------- */
+  header {
+    margin-bottom: 2.25rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.6rem;
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(1.5rem, 3.2vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.6rem;
+    text-wrap: balance;
+  }
+  header p {
+    color: var(--ink-dim);
+    font-size: 0.98rem;
+    line-height: 1.55;
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  .states-strip {
+    margin-top: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    padding: 0.7rem 0.9rem;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .states-strip .label {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+  .states-strip .codes {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+  .state-code {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid transparent;
+  }
+
+  /* ---------- legend ---------- */
+  .legend {
+    display: flex;
+    gap: 1.4rem;
+    margin: 1.5rem 0 0;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.76rem;
+    color: var(--ink-dim);
+  }
+  .swatch {
+    width: 0.62rem;
+    height: 0.62rem;
+    border-radius: 2px;
+    flex: none;
+  }
+  .swatch.process { background: var(--accent); }
+  .swatch.external { background: var(--accent-warm); }
+  .swatch.storage { background: var(--store); }
+
+  /* ---------- pipeline ---------- */
+  .pipeline {
+    margin-top: 2.4rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .seed {
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    align-items: center;
+    background: var(--panel-2);
+  }
+  .seed .tag { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); }
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    padding: 0.22rem 0.5rem;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    background: var(--panel);
+    white-space: nowrap;
+  }
+
+  .connector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 2.4rem;
+    position: relative;
+  }
+  .connector::before {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: var(--line);
+    transform: translateX(-50%);
+  }
+  .connector .arrow {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+    line-height: 1;
+    padding: 0.15rem 0;
+  }
+  .connector .note {
+    position: absolute;
+    left: calc(50% + 1.1rem);
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  /* ---------- stage card ---------- */
+  .stage {
+    display: flex;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .stage-card {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem 1.15rem;
+  }
+  .stage-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.45rem;
+  }
+  .stage-num {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+  .stage-title {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--ink);
+  }
+  .stage-file {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+  }
+  .stage-desc {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--ink-dim);
+    margin: 0 0 0.8rem;
+  }
+  .stage-desc code {
+    font-family: var(--mono);
+    font-size: 0.82em;
+    color: var(--ink);
+    background: var(--panel-2);
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+  }
+
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.35rem;
+  }
+  .tag-row .label {
+    font-size: 0.66rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-right: 0.15rem;
+    align-self: center;
+  }
+
+  /* side callout for external systems */
+  .side-callouts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 210px;
+    flex: none;
+  }
+  .callout {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-warm);
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    line-height: 1.45;
+  }
+  .callout .co-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-warm);
+    margin-bottom: 0.25rem;
+  }
+  .callout code {
+    font-family: var(--mono);
+    font-size: 0.82em;
+    color: var(--ink);
+  }
+
+  /* storage band */
+  .storage-band {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--store);
+    background: var(--store-soft);
+    border-radius: 8px;
+    padding: 0.7rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .storage-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+  }
+  .storage-row .table {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--store);
+  }
+  .storage-row .op {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    padding: 0.08rem 0.35rem;
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--ink-dim);
+    border: 1px solid var(--line);
+  }
+  .storage-row .detail {
+    color: var(--ink-dim);
+  }
+
+  /* footer */
+  .outcome {
+    margin-top: 2.4rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+    background: var(--panel-2);
+  }
+  .outcome .stage-num { color: var(--ink-faint); }
+  .outcome p { margin: 0.4rem 0 0; font-size: 0.86rem; color: var(--ink-dim); line-height: 1.55; }
+  .outcome .stage-title { color: var(--ink); }
+
+  @media (max-width: 620px) {
+    .stage { flex-direction: column; }
+    .side-callouts { width: 100%; flex-direction: row; flex-wrap: wrap; }
+    .callout { flex: 1 1 220px; }
+  }
+</style>
+
+<div class="page">
+
+  <header>
+    <p class="eyebrow">Scrappy · USA Campaign</p>
+    <h1>Home-cleaning outreach pipeline — border states</h1>
+    <p>
+      Three long-running Node workers pass businesses through a shared MySQL
+      database: scrape Google Maps → enrich each lead's web presence → generate
+      a personalized booking-page outreach email. Every stage after the scrape
+      re-filters down to the same ten states.
+    </p>
+
+    <div class="states-strip">
+      <span class="label">Border states filter</span>
+      <div class="codes">
+        <span class="state-code">WA</span><span class="state-code">ID</span>
+        <span class="state-code">MT</span><span class="state-code">ND</span>
+        <span class="state-code">MN</span><span class="state-code">MI</span>
+        <span class="state-code">NY</span><span class="state-code">VT</span>
+        <span class="state-code">NH</span><span class="state-code">ME</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="swatch process"></span>USA worker script</div>
+      <div class="legend-item"><span class="swatch external"></span>External system</div>
+      <div class="legend-item"><span class="swatch storage"></span>MySQL read/write</div>
+    </div>
+  </header>
+
+  <div class="pipeline">
+
+    <!-- seed inputs -->
+    <div class="seed">
+      <span class="tag">Seed data</span>
+      <span class="chip">locationsUSA.json — 693 cities/towns, 10 border states</span>
+      <span class="chip">KEYWORDS[5] — House/Residential/Home Cleaning, Maid, Deep Cleaning</span>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span></div>
+
+    <!-- Stage 1 -->
+    <div class="stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <span class="stage-num">01</span>
+          <span class="stage-title">Scrape</span>
+          <span class="stage-file">scrapeGoogleMapsUSA.js</span>
+        </div>
+        <p class="stage-desc">
+          Headless Playwright/Chromium loops every <code>keyword × location</code>
+          pair, scrolls the results <code>feed</code> up to 10 times, then opens
+          each listing's profile page to pull the definitive phone / address /
+          website out of button and link <code>aria-label</code>s. Duplicate
+          check via <code>businessExists(name, phone)</code> before insert.
+        </p>
+        <div class="tag-row">
+          <span class="label">Checkpoint</span>
+          <span class="chip">progressGmapsUSA.json — resumable {keywordIndex, locationIndex}</span>
+        </div>
+      </div>
+      <div class="side-callouts">
+        <div class="callout">
+          <span class="co-label">Scrape target</span>
+          Google Maps search results &amp; place panels, one browser context per run
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span><span class="note">one row per business</span></div>
+
+    <div class="storage-band">
+      <div class="storage-row">
+        <span class="table">businesses</span>
+        <span class="op">INSERT</span>
+        <span class="detail">name, phone, address, website, profile_url, keyword, location</span>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span><span class="note">enriched = 0, state ∈ filter</span></div>
+
+    <!-- Stage 2 -->
+    <div class="stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <span class="stage-num">02</span>
+          <span class="stage-title">Enrich</span>
+          <span class="stage-file">workerUSA.js</span>
+        </div>
+        <p class="stage-desc">
+          Continuous queue loop (poll every 5s, 30s idle, 10s on error).
+          No-website rows get heuristic pain-point tags (<code>no_website</code>,
+          <code>needs_booking_system</code>); a website first runs
+          <code>validateUrl()</code> to catch dead/parked/social-redirect
+          domains, then <code>performEnrichment()</code> scrapes CMS, SSL,
+          contact page, testimonials, and a lead score.
+        </p>
+        <div class="tag-row">
+          <span class="label">Uses</span>
+          <span class="chip">urlValidator.js</span>
+          <span class="chip">enrichment.js → fetchPage.js</span>
+        </div>
+      </div>
+      <div class="side-callouts">
+        <div class="callout">
+          <span class="co-label">Fetches</span>
+          Each lead's own <code>website</code> URL — not an external API
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span></div>
+
+    <div class="storage-band">
+      <div class="storage-row">
+        <span class="table">business_enrichment</span>
+        <span class="op">UPSERT</span>
+        <span class="detail">cms, score, pain_points, lead_type / lead_tag, email</span>
+      </div>
+      <div class="storage-row">
+        <span class="table">businesses</span>
+        <span class="op">UPDATE</span>
+        <span class="detail">email (backfill), enriched = 1</span>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span><span class="note">enriched = 1, email set, keyword match</span></div>
+
+    <!-- Stage 3 -->
+    <div class="stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <span class="stage-num">03</span>
+          <span class="stage-title">Booking outreach</span>
+          <span class="stage-file">bookingOutreachUSA.js</span>
+        </div>
+        <p class="stage-desc">
+          Continuous queue loop (5s after success for rate-limiting, 30s idle,
+          10s on error). Pulls one qualified cleaning-service lead at a time,
+          creates a provider via the booking API, picks 1 of 3 message
+          templates at random, and assembles a 3-paragraph email with the
+          provider's booking link, a Calendly CTA, and a fixed signature block.
+        </p>
+        <div class="tag-row">
+          <span class="label">Uses</span>
+          <span class="chip">bookingApiClient.js — retry w/ backoff, 2s pacing</span>
+        </div>
+      </div>
+      <div class="side-callouts">
+        <div class="callout">
+          <span class="co-label">External API</span>
+          <code>POST letsbook.maakhq.com/api/providers</code> → provider + templates
+        </div>
+        <div class="callout">
+          <span class="co-label">Static link</span>
+          calendly.com/workwithmaak — embedded in email copy only
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span></div>
+
+    <div class="storage-band">
+      <div class="storage-row">
+        <span class="table">business_analysis</span>
+        <span class="op">INSERT</span>
+        <span class="detail">generated_email, booking_api_provider_id/slug, template used</span>
+      </div>
+      <div class="storage-row">
+        <span class="table">businesses</span>
+        <span class="op">UPDATE</span>
+        <span class="detail">booking_analyzed = 1</span>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span></div>
+
+    <div class="outcome">
+      <div class="stage-head">
+        <span class="stage-num">→</span>
+        <span class="stage-title">Output</span>
+      </div>
+      <p>
+        <code>business_analysis.generated_email</code> holds a ready-to-send
+        message per lead. Nothing in <code>usa/</code> sends it automatically —
+        dispatch is a manual or external step outside this pipeline.
+      </p>
+    </div>
+
+  </div>
+</div>

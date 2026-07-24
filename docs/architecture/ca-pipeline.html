@@ -1,0 +1,674 @@
+<title>CA Pipeline — Home Cleaning Outreach Architecture</title>
+<style>
+  :root {
+    --bg: #f5f1ee;
+    --panel: #ffffff;
+    --panel-2: #faf6f3;
+    --ink: #241c1a;
+    --ink-dim: #6b5d58;
+    --ink-faint: #9c8d87;
+    --line: #e2d6d0;
+    --accent: #c0392b;
+    --accent-soft: #fbe9e6;
+    --accent-warm: #c97a1a;
+    --accent-warm-soft: #fbeedb;
+    --store: #1f8a6e;
+    --store-soft: #e4f5ef;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", "Roboto Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --display: -apple-system, BlinkMacSystemFont, "Segoe UI Semibold", "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14100f;
+      --panel: #1c1614;
+      --panel-2: #181211;
+      --ink: #f0e6e2;
+      --ink-dim: #ab9a94;
+      --ink-faint: #6b5d58;
+      --line: #332624;
+      --accent: #ec6b5a;
+      --accent-soft: #2b1815;
+      --accent-warm: #f0a848;
+      --accent-warm-soft: #2a2013;
+      --store: #4fd6ab;
+      --store-soft: #10261f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14100f;
+    --panel: #1c1614;
+    --panel-2: #181211;
+    --ink: #f0e6e2;
+    --ink-dim: #ab9a94;
+    --ink-faint: #6b5d58;
+    --line: #332624;
+    --accent: #ec6b5a;
+    --accent-soft: #2b1815;
+    --accent-warm: #f0a848;
+    --accent-warm-soft: #2a2013;
+    --store: #4fd6ab;
+    --store-soft: #10261f;
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f1ee;
+    --panel: #ffffff;
+    --panel-2: #faf6f3;
+    --ink: #241c1a;
+    --ink-dim: #6b5d58;
+    --ink-faint: #9c8d87;
+    --line: #e2d6d0;
+    --accent: #c0392b;
+    --accent-soft: #fbe9e6;
+    --accent-warm: #c97a1a;
+    --accent-warm-soft: #fbeedb;
+    --store: #1f8a6e;
+    --store-soft: #e4f5ef;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  /* ---------- header ---------- */
+  header { margin-bottom: 2.25rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.6rem;
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(1.5rem, 3.2vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.6rem;
+    text-wrap: balance;
+  }
+  header p {
+    color: var(--ink-dim);
+    font-size: 0.98rem;
+    line-height: 1.55;
+    max-width: 64ch;
+    margin: 0;
+  }
+
+  .states-strip {
+    margin-top: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    padding: 0.7rem 0.9rem;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .states-strip .label {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+  .states-strip .codes { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .state-code {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid transparent;
+  }
+
+  /* ---------- legend ---------- */
+  .legend { display: flex; gap: 1.4rem; margin: 1.5rem 0 0; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 0.45rem; font-size: 0.76rem; color: var(--ink-dim); }
+  .swatch { width: 0.62rem; height: 0.62rem; border-radius: 2px; flex: none; }
+  .swatch.process { background: var(--accent); }
+  .swatch.external { background: var(--accent-warm); }
+  .swatch.storage { background: var(--store); }
+
+  /* ---------- lane framing ---------- */
+  .lane-head {
+    margin: 3rem 0 1.4rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+  }
+  .lane-head:first-of-type { margin-top: 2.4rem; }
+  .lane-tag {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--panel);
+    background: var(--ink);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+  }
+  .lane-title { font-family: var(--display); font-weight: 700; font-size: 1.15rem; }
+  .lane-sub { font-size: 0.82rem; color: var(--ink-faint); width: 100%; margin-top: 0.15rem; }
+
+  .divider {
+    margin: 2.6rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    color: var(--ink-faint);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .divider::before, .divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 11px);
+  }
+
+  /* ---------- pipeline ---------- */
+  .pipeline { display: flex; flex-direction: column; }
+
+  .seed {
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    align-items: center;
+    background: var(--panel-2);
+  }
+  .seed .tag { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); }
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    padding: 0.22rem 0.5rem;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    background: var(--panel);
+    white-space: nowrap;
+  }
+
+  .connector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 2.4rem;
+    position: relative;
+  }
+  .connector::before {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: var(--line);
+    transform: translateX(-50%);
+  }
+  .connector .arrow {
+    position: relative;
+    z-index: 1;
+    background: var(--bg);
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+    line-height: 1;
+    padding: 0.15rem 0;
+  }
+  .connector .note {
+    position: absolute;
+    left: calc(50% + 1.1rem);
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  /* ---------- stage card ---------- */
+  .stage { display: flex; gap: 1rem; align-items: stretch; }
+  .stage-card {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem 1.15rem;
+  }
+  .stage-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.45rem; }
+  .stage-num { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.06em; }
+  .stage-title { font-family: var(--display); font-weight: 700; font-size: 1.02rem; color: var(--ink); }
+  .stage-file { font-family: var(--mono); font-size: 0.78rem; color: var(--ink-faint); }
+  .stage-desc { font-size: 0.88rem; line-height: 1.55; color: var(--ink-dim); margin: 0 0 0.8rem; }
+  .stage-desc code {
+    font-family: var(--mono);
+    font-size: 0.82em;
+    color: var(--ink);
+    background: var(--panel-2);
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+  }
+
+  .tag-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.35rem; }
+  .tag-row .label {
+    font-size: 0.66rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-right: 0.15rem;
+    align-self: center;
+  }
+
+  .side-callouts { display: flex; flex-direction: column; gap: 0.6rem; width: 210px; flex: none; }
+  .callout {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-warm);
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    line-height: 1.45;
+  }
+  .callout .co-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-warm);
+    margin-bottom: 0.25rem;
+  }
+  .callout code { font-family: var(--mono); font-size: 0.82em; color: var(--ink); }
+
+  /* storage band */
+  .storage-band {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--store);
+    background: var(--store-soft);
+    border-radius: 8px;
+    padding: 0.7rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .storage-row { display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; font-size: 0.82rem; }
+  .storage-row .table { font-family: var(--mono); font-weight: 600; color: var(--store); }
+  .storage-row .op {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    padding: 0.08rem 0.35rem;
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--ink-dim);
+    border: 1px solid var(--line);
+  }
+  .storage-row .detail { color: var(--ink-dim); }
+
+  /* route card (manual API lane) */
+  .route-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 1rem 1.25rem 1.1rem;
+  }
+  .route-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+  .method {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 0.12rem 0.4rem;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+  }
+  .route-path { font-family: var(--mono); font-size: 0.92rem; color: var(--ink); }
+  .route-list { display: flex; flex-direction: column; gap: 0.9rem; }
+
+  /* footer */
+  .outcome {
+    margin-top: 2.4rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+    background: var(--panel-2);
+  }
+  .outcome .stage-num { color: var(--ink-faint); }
+  .outcome p { margin: 0.4rem 0 0; font-size: 0.86rem; color: var(--ink-dim); line-height: 1.55; }
+  .outcome .stage-title { color: var(--ink); }
+  .outcome + .outcome { margin-top: 0.9rem; }
+
+  @media (max-width: 620px) {
+    .stage { flex-direction: column; }
+    .side-callouts { width: 100%; flex-direction: row; flex-wrap: wrap; }
+    .callout { flex: 1 1 220px; }
+  }
+</style>
+
+<div class="page">
+
+  <header>
+    <p class="eyebrow">Scrappy · CA Campaign</p>
+    <h1>Home-cleaning outreach pipeline — Canada-wide</h1>
+    <p>
+      The original campaign, and the only one with two ways to run it: a set
+      of continuous background workers, and a manual Express API that does
+      the same three jobs one call at a time. Both read and write the same
+      MySQL tables, but the final step — turning a lead into an email —
+      is implemented twice, in two different ways.
+    </p>
+
+    <div class="states-strip">
+      <span class="label">Coverage</span>
+      <div class="codes">
+        <span class="state-code">2,755 cities/towns</span>
+        <span class="state-code">AB</span><span class="state-code">BC</span>
+        <span class="state-code">MB</span><span class="state-code">NB</span>
+        <span class="state-code">NL</span><span class="state-code">NS</span>
+        <span class="state-code">NU</span><span class="state-code">ON</span>
+        <span class="state-code">PE</span><span class="state-code">QC</span>
+        <span class="state-code">SK</span><span class="state-code">YT</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="swatch process"></span>CA worker / route</div>
+      <div class="legend-item"><span class="swatch external"></span>External system</div>
+      <div class="legend-item"><span class="swatch storage"></span>MySQL read/write</div>
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+  <!-- LANE A — AUTOMATED CONTINUOUS WORKERS                         -->
+  <!-- ============================================================ -->
+  <div class="lane-head">
+    <span class="lane-tag">Lane A</span>
+    <span class="lane-title">Automated pipeline</span>
+    <span class="lane-sub">Three standalone Node processes, each an infinite poll loop — no server, no HTTP.</span>
+  </div>
+
+  <div class="pipeline">
+
+    <div class="seed">
+      <span class="tag">Seed data</span>
+      <span class="chip">locations.json — 2,755 cities/towns, every province &amp; territory</span>
+      <span class="chip">KEYWORDS[5] — House/Residential/Home Cleaning, Maid, Deep Cleaning</span>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span></div>
+
+    <!-- Stage 1 -->
+    <div class="stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <span class="stage-num">01</span>
+          <span class="stage-title">Scrape</span>
+          <span class="stage-file">scrapeWorker.js</span>
+        </div>
+        <p class="stage-desc">
+          For every <code>keyword × location</code> pair, pages through
+          YellowPages.ca search results up to <code>MAX_PAGES = 30</code>,
+          stopping early once a page comes back empty or the site blocks the
+          request. Parses <code>.listing</code> cards for name / phone /
+          address, unwraps YP's <code>redirect=</code> website links, and
+          dedupes via <code>businessExists(name, phone)</code> before insert.
+        </p>
+        <div class="tag-row">
+          <span class="label">Checkpoint</span>
+          <span class="chip">progress.json — resumable {keywordIndex, locationIndex}</span>
+        </div>
+      </div>
+      <div class="side-callouts">
+        <div class="callout">
+          <span class="co-label">Scrape target</span>
+          yellowpages.ca search result pages, one Chromium tab per page number
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span><span class="note">one row per business</span></div>
+
+    <div class="storage-band">
+      <div class="storage-row">
+        <span class="table">businesses</span>
+        <span class="op">INSERT</span>
+        <span class="detail">name, phone, address, website, profile_url, keyword, location</span>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span><span class="note">enriched = 0</span></div>
+
+    <!-- Stage 2 -->
+    <div class="stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <span class="stage-num">02</span>
+          <span class="stage-title">Enrich</span>
+          <span class="stage-file">worker.js</span>
+        </div>
+        <p class="stage-desc">
+          Continuous queue loop (poll every 5s, 30s idle, 10s on error) —
+          identical logic to the USA enrichment worker, just without the
+          state filter. No-website rows get heuristic pain-point tags;
+          a website first runs <code>validateUrl()</code> to catch
+          dead/parked/social-redirect domains, then
+          <code>performEnrichment()</code> scrapes CMS, SSL, contact page,
+          testimonials, and a lead score.
+        </p>
+        <div class="tag-row">
+          <span class="label">Uses</span>
+          <span class="chip">urlValidator.js</span>
+          <span class="chip">enrichment.js → fetchPage.js</span>
+        </div>
+      </div>
+      <div class="side-callouts">
+        <div class="callout">
+          <span class="co-label">Fetches</span>
+          Each lead's own <code>website</code> URL — not an external API
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span></div>
+
+    <div class="storage-band">
+      <div class="storage-row">
+        <span class="table">business_enrichment</span>
+        <span class="op">UPSERT</span>
+        <span class="detail">cms, score, pain_points, lead_type / lead_tag, email</span>
+      </div>
+      <div class="storage-row">
+        <span class="table">businesses</span>
+        <span class="op">UPDATE</span>
+        <span class="detail">email (backfill), enriched = 1</span>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span><span class="note">enriched = 1, email set, keyword match</span></div>
+
+    <!-- Stage 3 -->
+    <div class="stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <span class="stage-num">03</span>
+          <span class="stage-title">Booking outreach</span>
+          <span class="stage-file">bookingOutreach.js</span>
+        </div>
+        <p class="stage-desc">
+          Continuous queue loop (5s after success for rate-limiting, 30s idle,
+          10s on error). Pulls one qualified cleaning-service lead nationwide,
+          creates a provider via the booking API, picks 1 of 3 message
+          templates at random, and assembles a 3-paragraph email with the
+          provider's booking link, a Calendly CTA, and a fixed signature block.
+        </p>
+        <div class="tag-row">
+          <span class="label">Uses</span>
+          <span class="chip">bookingApiClient.js — retry w/ backoff, 2s pacing</span>
+        </div>
+      </div>
+      <div class="side-callouts">
+        <div class="callout">
+          <span class="co-label">External API</span>
+          <code>POST letsbook.maakhq.com/api/providers</code> → provider + templates
+        </div>
+        <div class="callout">
+          <span class="co-label">Static link</span>
+          calendly.com/workwithmaak — embedded in email copy only
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span></div>
+
+    <div class="storage-band">
+      <div class="storage-row">
+        <span class="table">business_analysis</span>
+        <span class="op">INSERT</span>
+        <span class="detail">generated_email, booking_api_provider_id/slug, template used</span>
+      </div>
+      <div class="storage-row">
+        <span class="table">businesses</span>
+        <span class="op">UPDATE</span>
+        <span class="detail">booking_analyzed = 1</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DIVIDER — shared tables                                       -->
+  <!-- ============================================================ -->
+  <div class="divider">same businesses &amp; business_enrichment tables</div>
+
+  <!-- ============================================================ -->
+  <!-- LANE B — MANUAL HTTP API                                      -->
+  <!-- ============================================================ -->
+  <div class="lane-head">
+    <span class="lane-tag">Lane B</span>
+    <span class="lane-title">Manual HTTP API</span>
+    <span class="lane-sub">server.js — Express on :3000, the one process PM2 actually keeps alive (ecosystem app "yp-scraper"). Same three jobs, triggered per-call instead of looping.</span>
+  </div>
+
+  <div class="pipeline">
+    <div class="route-list">
+
+      <div class="stage">
+        <div class="route-card">
+          <div class="route-head">
+            <span class="method">POST</span>
+            <span class="route-path">/scrape</span>
+            <span class="stage-file">{ keyword, location }</span>
+          </div>
+          <p class="stage-desc">
+            One-shot version of <code>scrapeWorker.js</code>: scrapes a
+            single YellowPages.ca results page for the given pair and
+            inserts every listing directly — no dedupe check, no pagination.
+          </p>
+        </div>
+        <div class="side-callouts">
+          <div class="callout">
+            <span class="co-label">Writes</span>
+            <code>businesses</code> — INSERT
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="route-card">
+          <div class="route-head">
+            <span class="method">POST</span>
+            <span class="route-path">/enrich</span>
+          </div>
+          <p class="stage-desc">
+            Pops one <code>enriched = 0</code> row off the same queue
+            <code>worker.js</code> drains, and runs
+            <code>performEnrichment()</code> directly — skips
+            <code>urlValidator.js</code>, so it doesn't pre-classify
+            dead/parked domains before scraping them.
+          </p>
+        </div>
+        <div class="side-callouts">
+          <div class="callout">
+            <span class="co-label">Writes</span>
+            <code>business_enrichment</code> — INSERT, <code>businesses.enriched</code> — UPDATE
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="route-card">
+          <div class="route-head">
+            <span class="method">POST</span>
+            <span class="route-path">/analyze</span>
+            <span class="stage-file">analyze.js — analyzeNext()</span>
+          </div>
+          <p class="stage-desc">
+            The legacy email path, and the one place this pipeline calls an
+            LLM. Builds a niche-specific prompt from the business + its
+            enrichment row, sends it to <code>gpt-4o-mini</code>, and parses
+            back a bespoke <code>{ subject, body }</code> — one email
+            written from scratch per lead, instead of a template pick.
+          </p>
+        </div>
+        <div class="side-callouts">
+          <div class="callout">
+            <span class="co-label">External API</span>
+            OpenAI <code>chat.completions</code> — model <code>gpt-4o-mini</code>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="connector"><span class="arrow">▾</span></div>
+
+    <div class="storage-band">
+      <div class="storage-row">
+        <span class="table">business_analysis</span>
+        <span class="op">INSERT</span>
+        <span class="detail">generated_email (LLM-written) — no booking_api_* columns set</span>
+      </div>
+      <div class="storage-row">
+        <span class="table">businesses</span>
+        <span class="op">UPDATE</span>
+        <span class="detail">analyzed = 1 — a separate flag from booking_analyzed</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="outcome">
+    <div class="stage-head">
+      <span class="stage-num">→</span>
+      <span class="stage-title">Output — two flags, two authors</span>
+    </div>
+    <p>
+      <code>business_analysis</code> ends up with rows written by two
+      different generators: <code>analyzed = 1</code> rows came from a human
+      calling <code>POST /analyze</code> and an LLM prompt; <code>booking_analyzed = 1</code>
+      rows came from the automated <code>bookingOutreach.js</code> loop and a
+      fixed template. Nothing in <code>ca/</code> sends either email
+      automatically — dispatch is a manual or external step outside this pipeline.
+    </p>
+  </div>
+
+</div>
