@@ -14,8 +14,8 @@
  *   }
  */
 
-const axios = require("axios");
 const dns   = require("dns").promises;
+const { fetchWithFallback } = require("./fetchPage");
 
 // ─────────────────────────────────────────────
 // KNOWN JUNK DOMAINS
@@ -135,13 +135,57 @@ function normalizeUrl(url) {
   try { return new URL(url).href; } catch { return null; }
 }
 
-async function domainResolvable(hostname) {
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// This host's local resolver (systemd-resolved stub at 127.0.0.53) has been
+// observed returning EAI_AGAIN transiently under bursty lookups — for domains
+// that resolve fine moments later via public DNS. Query 1.1.1.1/8.8.8.8
+// directly first (bypasses the flaky local stub); fall back to the system
+// resolver only if those also fail.
+const publicResolver = new dns.Resolver();
+publicResolver.setServers(["1.1.1.1", "8.8.8.8"]);
+
+async function resolveOnce(hostname) {
+  try {
+    await publicResolver.resolve4(hostname);
+    return true;
+  } catch {
+    // fall through to try the system resolver below
+  }
   try {
     await dns.lookup(hostname);
     return true;
   } catch {
     return false;
   }
+}
+
+// Some sites only configure DNS for the apex domain and never set up a "www"
+// CNAME (or vice versa) — the scraped URL's exact hostname fails to resolve
+// even though the business's real domain is live. Try the sibling variant
+// before giving up.
+function hostnameVariants(hostname) {
+  if (hostname.startsWith("www.")) {
+    return [hostname, hostname.slice(4)];
+  }
+  return [hostname, "www." + hostname];
+}
+
+// DNS resolvers occasionally hiccup transiently (EAI_AGAIN, timeouts) even for
+// perfectly live domains — a single failed lookup shouldn't permanently kill
+// a business. Retry before concluding the domain is actually unregistered.
+// Returns the hostname variant that actually resolved (may differ from the
+// input if only the www/apex sibling is live), or null if neither resolves.
+async function domainResolvable(hostname) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    for (const variant of hostnameVariants(hostname)) {
+      if (await resolveOnce(variant)) return variant;
+    }
+    if (attempt < 2) await delay(1500 + attempt * 1500);
+  }
+  return null;
 }
 
 // ─────────────────────────────────────────────
@@ -165,7 +209,7 @@ async function validateUrl(rawUrl) {
     return result(false, null, null, "no_url", "no_website", "No website URL provided");
   }
 
-  const normalizedUrl = normalizeUrl(rawUrl);
+  let normalizedUrl = normalizeUrl(rawUrl);
   if (!normalizedUrl) {
     return result(false, null, null, "unparseable_url", "invalid_url", `Could not parse URL: ${rawUrl}`);
   }
@@ -199,34 +243,31 @@ async function validateUrl(rawUrl) {
   }
 
   // ── 6. DNS check — domain doesn't resolve ────
-  const resolvable = await domainResolvable(rawHostname);
-  if (!resolvable) {
+  const resolvedHostname = await domainResolvable(rawHostname);
+  if (!resolvedHostname) {
     return result(false, normalizedUrl, null, "dns_failed", "domain_not_registered",
       `Domain ${rawHostname} does not resolve — likely unregistered or expired`);
   }
+  // Only the www/apex sibling resolved (e.g. www.foo.com is dead but foo.com
+  // is live) — fetch that variant instead of the one that will just fail.
+  if (resolvedHostname !== rawHostname) {
+    normalizedUrl = normalizedUrl.replace(rawHostname, resolvedHostname);
+  }
 
   // ── 7. HTTP fetch — check for redirects & parking pages ──
-  let response;
-  try {
-    response = await axios.get(normalizedUrl, {
-      timeout: 10000,
-      maxRedirects: 5,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      validateStatus: (s) => s < 500, // treat 4xx as valid responses for inspection
-    });
-  } catch (err) {
-    const reason = classifyFetchError(err);
+  // Falls back to a headless-browser render when the plain fetch looks
+  // blocked (403/429) or empty (client-rendered site) — many real sites
+  // were previously misclassified as dead purely because of this.
+  const fetched = await fetchWithFallback(normalizedUrl, { timeout: 10000 });
+  if (!fetched.ok) {
+    const reason = classifyFetchError(fetched.error || {});
     return result(false, normalizedUrl, null, reason.code, reason.tag, reason.notes);
   }
 
-  const finalUrl     = response.request?.res?.responseUrl || normalizedUrl;
+  const finalUrl     = fetched.finalUrl || normalizedUrl;
   const finalHost    = new URL(finalUrl).hostname.toLowerCase().replace(/^www\./, "");
-  const html         = typeof response.data === "string" ? response.data : "";
-  const statusCode   = response.status;
+  const html         = fetched.html || "";
+  const statusCode   = fetched.statusCode;
 
   // ── 8. Post-redirect domain checks ──────────
   // e.g. entered "joesplumbing.com" but it redirected to google.com/maps/...

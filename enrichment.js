@@ -1,5 +1,5 @@
-const axios = require("axios");
 const cheerio = require("cheerio");
+const { fetchWithFallback } = require("./fetchPage");
 
 // ─────────────────────────────────────────────
 // CONSTANTS
@@ -269,30 +269,123 @@ function classifyLead(enrichment) {
 const EMAIL_BLACKLIST = /\.(png|jpg|jpeg|gif|svg|webp|woff|ttf|css|js)$/i;
 const JUNK_EMAIL_DOMAINS = /sentry\.io|example\.com|yourdomain|domain\.com|email\.com|test\.com/i;
 
-function extractEmail($, html) {
+// Page-builder templates (Webflow, Wix, GoDaddy, etc.) ship with the vendor's
+// own placeholder mailto: href baked into a component; site owners often edit
+// the *visible* text to their real address but never touch the underlying
+// href. Trust the href outright only when it matches the business's own
+// domain or a known public mailbox provider — otherwise it's most likely
+// leftover template boilerplate.
+const COMMON_EMAIL_PROVIDERS = new Set([
+  "gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com",
+  "aol.com", "protonmail.com", "live.com", "msn.com", "comcast.net",
+  "yandex.com", "zoho.com", "gmx.com", "mail.com",
+]);
+
+function isValidEmail(addr) {
+  return !!addr && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr) && !JUNK_EMAIL_DOMAINS.test(addr);
+}
+
+// Cloudflare's "email protection" replaces real addresses with an XOR-encoded
+// hex blob in a data-cfemail attribute, decoded client-side by their JS.
+// A raw-HTML regex never sees the real address unless we decode it ourselves.
+function decodeCfEmail(encoded) {
+  try {
+    const r = parseInt(encoded.substr(0, 2), 16);
+    let email = "";
+    for (let n = 2; n < encoded.length; n += 2) {
+      email += String.fromCharCode(parseInt(encoded.substr(n, 2), 16) ^ r);
+    }
+    return email;
+  } catch {
+    return null;
+  }
+}
+
+function extractEmail($, html, siteDomain) {
   // 1. Priority: visible mailto: links (most trustworthy)
   let found = null;
+  let suspicious = null; // href present but doesn't match the site's own domain
   $("a[href^='mailto:']").each((_, el) => {
     if (found) return;
     const href = $(el).attr("href") || "";
-    const addr = href.replace(/^mailto:/i, "").split("?")[0].trim().toLowerCase();
-    if (addr && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(addr) && !JUNK_EMAIL_DOMAINS.test(addr)) {
+    let addr = href.replace(/^mailto:/i, "").split("?")[0].trim();
+    // hrefs are sometimes URL-encoded (e.g. "%20" before the address) —
+    // decode before validating, otherwise a stray %20 gets glued onto the
+    // local part and produces an invalid, unusable address.
+    try { addr = decodeURIComponent(addr); } catch {}
+    addr = addr.trim().toLowerCase();
+    if (!isValidEmail(addr)) return;
+
+    const emailDomain = addr.split("@")[1];
+    const matchesSite = siteDomain && (emailDomain === siteDomain || emailDomain.endsWith("." + siteDomain));
+    const isPublicProvider = COMMON_EMAIL_PROVIDERS.has(emailDomain);
+
+    if (matchesSite || isPublicProvider) {
       found = addr;
+      return;
+    }
+
+    // href domain is unrelated to this business — likely a template vendor's
+    // placeholder. The link's own visible text is often the real address the
+    // owner actually edited; prefer that if it's a different valid email.
+    const visibleText = $(el).text().trim().toLowerCase();
+    if (isValidEmail(visibleText) && visibleText !== addr) {
+      found = visibleText;
+      return;
+    }
+
+    if (!suspicious) suspicious = addr;
+  });
+  if (found) return found;
+
+  // 2. Cloudflare-obfuscated emails (data-cfemail attribute)
+  $("[data-cfemail]").each((_, el) => {
+    if (found) return;
+    const decoded = decodeCfEmail($(el).attr("data-cfemail") || "");
+    if (decoded && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(decoded) && !JUNK_EMAIL_DOMAINS.test(decoded)) {
+      found = decoded.toLowerCase();
     }
   });
   if (found) return found;
 
-  // 2. Fallback: scan visible text only (strip script/style to avoid bundle noise)
+  // 3. Fallback: scan visible text only (strip script/style to avoid bundle noise)
+  //
+  // Some sites (anti-spam plugins) split emails into one <span> per character
+  // with no whitespace between them. Cheerio's .text() correctly reassembles
+  // those (same as a browser's innerText would), but it just as happily fuses
+  // in whatever sits directly next to it with no separator too — a phone
+  // number before, a "business" label after — producing e.g.
+  // "contacts651-274-9658ritascleaners123@gmail.combusiness". An open-ended
+  // `[a-zA-Z]{2,}` TLD can't tell a real TLD from glued-on trailing text, so
+  // anchor to a known TLD list and sanity-check the local part isn't a
+  // phone-number-shaped run.
   const $2 = require("cheerio").load(html);
   $2("script, style, noscript, head").remove();
-  const visibleText = $2.root().text();
-  const match = visibleText.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+  const rawText = $2.root().text();
+  // A social-icon link sitting right next to the contact email with no
+  // separator (e.g. "...gmail.comwww.facebook.com") is common enough to
+  // guard for specifically: a real domain's dots are indistinguishable from
+  // glued-domain dots by TLD-boundary matching alone, since both look like
+  // "word.word.tld". Insert a separator before the recognizable glue partner.
+  const visibleText = rawText.replace(
+    /([a-z0-9])((?:https?:\/\/)?(?:www\.)?(?:facebook|instagram|twitter|linkedin|youtube|tiktok|pinterest|snapchat)\.[a-z]{2,})/gi,
+    "$1 $2"
+  );
+  const match = visibleText.match(
+    /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.(com|net|org|us|ca|co|io|biz|info|edu|gov|me|app|dev|xyz|online|shop|store|cloud|tech|site|ai|uk|au|nz|in|mx|de|fr|es|it|nl)(?![a-zA-Z0-9])/i
+  );
   if (match) {
     const addr = match[0].toLowerCase();
-    if (!JUNK_EMAIL_DOMAINS.test(addr) && !EMAIL_BLACKLIST.test(addr)) {
+    const localPart = addr.split("@")[0];
+    const looksLikePhoneNumber = /\d{3}[\d\-.\s]{4,}\d{3}/.test(localPart);
+    if (!JUNK_EMAIL_DOMAINS.test(addr) && !EMAIL_BLACKLIST.test(addr) && localPart.length <= 40 && !looksLikePhoneNumber) {
       return addr;
     }
   }
+
+  // 4. Last resort: an off-domain mailto href we couldn't corroborate.
+  // Still more useful than nothing, but least trustworthy — kept last.
+  if (suspicious) return suspicious;
 
   return null;
 }
@@ -311,24 +404,17 @@ async function performEnrichment(websiteUrl) {
   const normalizedUrl = normalizeUrl(websiteUrl);
   if (!normalizedUrl) throw new Error(`Invalid URL: ${websiteUrl}`);
 
-  let response;
-  try {
-    response = await axios.get(normalizedUrl, {
-      timeout: 12000,
-      maxRedirects: 5,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    });
-  } catch (err) {
-    throw new Error(`Failed to fetch ${normalizedUrl}: ${err.message}`);
+  // Falls back to a headless-browser render when the plain fetch looks
+  // blocked (403/429) or empty (client-rendered site) — recovers real
+  // content for sites that would otherwise look dead.
+  const fetched = await fetchWithFallback(normalizedUrl, { timeout: 12000 });
+  if (!fetched.ok) {
+    throw new Error(`Failed to fetch ${normalizedUrl}: ${fetched.error?.message || "unknown error"}`);
   }
 
-  const html      = response.data || "";
-  const finalUrl  = response.request?.res?.responseUrl || normalizedUrl;
-  const headers   = response.headers || {};
+  const html      = fetched.html || "";
+  const finalUrl  = fetched.finalUrl || normalizedUrl;
+  const headers   = fetched.headers || {};
   const $         = cheerio.load(html);
 
   // ── Tech Stack ──────────────────────────────
@@ -366,7 +452,30 @@ async function performEnrichment(websiteUrl) {
     || navLinks.some((l) => ABOUT_PAGE_PATTERNS.test(l));
 
   // ── Inline contact info ───────────────────────
-  const extractedEmail = extractEmail($, html);
+  const siteDomain = new URL(finalUrl).hostname.toLowerCase().replace(/^www\./, "");
+  let extractedEmail = extractEmail($, html, siteDomain);
+
+  // Most small-business sites put their email on the Contact (or About) page,
+  // not the homepage. Only the homepage was ever checked before, which is
+  // the main reason emails went missing on sites that scraped fine otherwise.
+  if (!extractedEmail) {
+    const secondaryLink =
+      navLinks.find((l) => CONTACT_PAGE_PATTERNS.test(l)) ||
+      navLinks.find((l) => ABOUT_PAGE_PATTERNS.test(l));
+
+    if (secondaryLink) {
+      try {
+        const secondaryFetch = await fetchWithFallback(secondaryLink, { timeout: 10000 });
+        if (secondaryFetch.ok && secondaryFetch.html) {
+          const $secondary = cheerio.load(secondaryFetch.html);
+          extractedEmail = extractEmail($secondary, secondaryFetch.html, siteDomain);
+        }
+      } catch {
+        // Best-effort only — homepage result (null) stands if this fails
+      }
+    }
+  }
+
   const hasEmail = !!extractedEmail;
   const hasPhone = /(\+?\d[\d\s\-().]{7,}\d)/.test(html);
 
