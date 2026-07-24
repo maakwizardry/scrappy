@@ -1,6 +1,6 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
-const { BookingApiClient } = require('./bookingApiClient');
+const { BookingApiClient } = require('../bookingApiClient');
 
 let db;
 const apiClient = new BookingApiClient();

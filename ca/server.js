@@ -6,7 +6,7 @@ const mysql = require("mysql2/promise");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const { URL } = require("url");
-const analyzeService = require("./analyze");
+const analyzeService = require("../analyze");
 
 const app = express();
 app.use(express.json());
@@ -143,7 +143,7 @@ app.post("/scrape", async (req, res) => {
     });
   }
 });
-const { performEnrichment } = require("./enrichment");
+const { performEnrichment } = require("../enrichment");
 // -------------------- ENRICH API --------------------
 
 app.post("/enrich", async (req, res) => {

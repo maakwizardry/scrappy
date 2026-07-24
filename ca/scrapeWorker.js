@@ -7,6 +7,7 @@
 
 require("dotenv").config();
 const fs = require("fs");
+const path = require("path");
 const { chromium } = require("playwright");
 const mysql = require("mysql2/promise");
 
@@ -23,7 +24,7 @@ const KEYWORDS = [
 ];
 
 // Load thousands of Canadian cities dynamically
-const LOCATIONS = JSON.parse(fs.readFileSync("./locations.json", "utf8"));
+const LOCATIONS = JSON.parse(fs.readFileSync(path.join(__dirname, "locations.json"), "utf8"));
 
 // ---------------------
 
@@ -67,7 +68,7 @@ async function businessExists(name, phone) {
 async function startScraping() {
   await initDB();
   
-  const progressFile = "./progress.json";
+  const progressFile = path.join(__dirname, "progress.json");
   let progress = { locationIndex: 0, keywordIndex: 0 };
   if (fs.existsSync(progressFile)) {
     try {

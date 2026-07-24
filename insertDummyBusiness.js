@@ -54,7 +54,7 @@ async function insertDummyBusiness() {
 
     console.log('\n📋 Business Details:');
     console.log(rows[0]);
-    console.log('\n✅ Ready for testing! Run: node bookingOutreach.js --test');
+    console.log('\n✅ Ready for testing! Run: node ca/bookingOutreach.js --test');
 
   } catch (error) {
     console.error('❌ Error:', error.message);

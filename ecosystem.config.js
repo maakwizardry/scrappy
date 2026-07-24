@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "yp-scraper",
-      script: "server.js",
+      script: "ca/server.js",
       instances: 1,
       autorestart: true,
       watch: false,
